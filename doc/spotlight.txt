@@ -1,0 +1,175 @@
+*spotlight.txt*    Dim everything outside what you're looking at.
+
+Author:  Arthur D'Aquino <https://github.com/arthurdaquinosilva>
+License: MIT
+
+==============================================================================
+CONTENTS                                                  *spotlight-contents*
+
+    1. Introduction ............................ |spotlight-introduction|
+    2. Usage ................................... |spotlight-usage|
+    3. Commands ................................ |spotlight-commands|
+    4. Mappings ................................ |spotlight-mappings|
+    5. Configuration ........................... |spotlight-configuration|
+    6. Highlight group ......................... |spotlight-highlight|
+    7. How it works ............................ |spotlight-internals|
+    8. License ................................. |spotlight-license|
+
+==============================================================================
+1. INTRODUCTION                                       *spotlight-introduction*
+
+Spotlight focuses your attention by visually dimming everything in the
+current buffer except the region you specify. The region can be:
+
+    - A visual selection (char-wise or block-wise)
+    - A motion or text object (via operator-pending mode)
+    - An ex-command range
+
+The dim region updates as you edit, persists across window and tab
+switches, and is tracked independently per buffer.
+
+==============================================================================
+2. USAGE                                                     *spotlight-usage*
+
+Quick start. With default mappings:
+
+    - In visual mode: select text, press <leader>h to toggle.
+    - In block-wise visual mode (<C-v>): select a column, press <leader>h
+      to light just that rectangle.
+    - In normal mode: <leader>h followed by a motion or text object —
+      anything you could hand to |d| or |y|. Examples:
+>
+        <leader>h9j     " current line + 9 below
+        <leader>hi{     " content inside braces
+        <leader>hap     " a paragraph
+<
+    - When a spotlight is active, pressing <leader>h alone clears it.
+
+==============================================================================
+3. COMMANDS                                               *spotlight-commands*
+
+                                                                  *:Spotlight*
+:[range]Spotlight       Spotlight the given line range, dimming everything
+                        else. Range defaults to the current line. Examples:
+>
+                            :5,20Spotlight
+                            :.,+9Spotlight
+                            :.,$Spotlight
+                            :%Spotlight
+<
+                                                             *:SpotlightClear*
+:SpotlightClear         Clear any active spotlight in the current buffer.
+
+==============================================================================
+4. MAPPINGS                                               *spotlight-mappings*
+
+Default key: <leader>h, available in normal and visual mode.
+
+VISUAL MODE                                          *spotlight-visual-mode*
+
+<leader>h               Toggle dimming on the current visual selection.
+
+                        In character-wise or line-wise visual mode this
+                        dims everything before the selection start and after
+                        the selection end, including the partial first and
+                        last lines.
+
+                        In block-wise visual mode (entered with <C-v>) it
+                        dims the columns to the left and right of the block
+                        on *every* line in the range, leaving a rectangular
+                        column of text lit. Useful for focusing on a single
+                        aligned column — a table field, a list of values, or
+                        one indentation level. Example:
+>
+                            <C-v>5j6l<leader>h
+<
+NORMAL MODE                                          *spotlight-normal-mode*
+
+<leader>h{motion}       Apply spotlight to the region covered by {motion}.
+                        Works with any motion or text object:
+>
+                            <leader>h9j      9 lines below
+                            <leader>h5k      5 lines above
+                            <leader>h}       up to next blank line
+                            <leader>hi{      inside braces
+                            <leader>ha(      around parens (incl. them)
+                            <leader>hit      inside HTML tag
+                            <leader>hi"      inside quotes
+                            <leader>hap      a paragraph
+                            <leader>hiw      inner word
+<
+<leader>h               If a spotlight is currently active in the buffer,
+                        clears it. (This is why the operator only triggers
+                        when nothing is dimmed — it prevents the double-press
+                        footgun where the second <leader>h gets parsed as a
+                        motion inside operator-pending mode.)
+
+<PLUG> TARGETS                                              *spotlight-plug*
+
+Two <Plug> mappings are always defined regardless of default-mapping
+settings:
+
+    <Plug>(SpotlightToggle)      Visual-mode toggle entry point.
+    <Plug>(SpotlightOperator)    Normal-mode operator / clear entry point.
+
+To rebind to a different key, disable defaults and map your own:
+>
+    let g:spotlight_no_default_mappings = 1
+
+    vmap <silent> ,s <Plug>(SpotlightToggle)
+    nmap <silent> ,s <Plug>(SpotlightOperator)
+<
+==============================================================================
+5. CONFIGURATION                                     *spotlight-configuration*
+
+                                          *g:spotlight_no_default_mappings*
+g:spotlight_no_default_mappings
+                        Default: 0
+                        Set to 1 to skip the default <leader>h bindings.
+                        You can then map your own keys to the <Plug>
+                        targets — see |spotlight-plug|.
+
+==============================================================================
+6. HIGHLIGHT GROUP                                       *spotlight-highlight*
+
+                                                            *hl-SpotlightDim*
+SpotlightDim            The highlight applied to dimmed text. Defined with
+                        |:highlight-default|, so anything you set in your
+                        colorscheme or vimrc takes precedence.
+
+                        Defaults: ctermfg=8 guifg=#1d1e17
+
+                        To customize:
+>
+                            highlight SpotlightDim ctermfg=240 guifg=#3a3a3a
+<
+                        The plugin re-applies the default on |ColorScheme|
+                        events, so switching themes won't strip it. If you
+                        want your custom highlight to survive theme changes,
+                        set it inside a |ColorScheme| autocmd of your own.
+
+==============================================================================
+7. HOW IT WORKS                                         *spotlight-internals*
+
+Vim's |matchadd()| attaches a highlight group to a regex pattern, scoped to
+the current window. The plugin builds patterns that match everything
+*outside* your region — earlier lines, later lines, and either the partial
+first and last lines (char-wise) or the left and right column bands across
+the whole range (block-wise) — and assigns each to SpotlightDim. The region
+itself receives no pattern, so it shows in your normal colors.
+
+Per-buffer state (the active flag and selection bounds) is kept in a
+script-local dictionary. Position-tracking marks 's and 'e let the dim
+adapt as you insert or delete text.
+
+Because |matchadd()| IDs are window-local but state is per-buffer, the
+plugin re-runs its match logic on |BufEnter| and |WinEnter|, clearing any
+stale SpotlightDim matches in the current window before re-applying. This
+keeps everything in sync across splits and tab pages.
+
+==============================================================================
+8. LICENSE                                                 *spotlight-license*
+
+MIT. See the LICENSE file at the repository root.
+
+vim:tw=78:ts=8:ft=help:norl:
