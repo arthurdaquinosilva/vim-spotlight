@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.neovim && 'Neovim' || 'Vim' }} ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Oldest supported versions, then current and upcoming ones.
+          - { neovim: false, version: v8.2.0000 }
+          - { neovim: false, version: v9.0.0000 }
+          - { neovim: false, version: stable }
+          - { neovim: false, version: nightly }
+          - { neovim: true, version: v0.5.1 }
+          - { neovim: true, version: v0.9.5 }
+          - { neovim: true, version: stable }
+          - { neovim: true, version: nightly }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rhysd/action-setup-vim@v1
+        id: editor
+        with:
+          neovim: ${{ matrix.neovim }}
+          version: ${{ matrix.version }}
+
+      - name: Run tests
+        run: >
+          make ${{ matrix.neovim && 'test-nvim' || 'test-vim' }}
+          VIM=${{ steps.editor.outputs.executable }}
+          NVIM=${{ steps.editor.outputs.executable }}
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # vint still imports pkg_resources, removed in setuptools 81.
+      - run: pip install vim-vint 'setuptools<81'
+      - run: make lint

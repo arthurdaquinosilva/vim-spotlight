@@ -1,23 +1,28 @@
 # vim-spotlight
 
+[![CI](https://github.com/arthurdaquinosilva/vim-spotlight/actions/workflows/ci.yml/badge.svg)](https://github.com/arthurdaquinosilva/vim-spotlight/actions/workflows/ci.yml)
+
 > Dim everything outside what you're looking at.
 
-A Vim plugin that puts a literal spotlight on your code. Select a region — by motion, text object, visual selection, or ex-range — and everything else fades to a muted color. Stop scanning a 600-line file for the 12 lines that matter.
+A Vim plugin that puts a literal spotlight on your code. Select a region by motion, text object, Visual selection, or Ex range, and everything else fades to a muted color. Stop scanning a 600-line file for the 12 lines that matter.
 
 ## Features
 
-- **Works with any motion or text object** — `<leader>h9j`, `<leader>hi{`, `<leader>hit`, `<leader>hap`, …
-- **Ex-range support** — `:5,20Spotlight`, `:.,+9Spotlight`
-- **Visual-mode toggle** — select, then `<leader>h`
-- **Block-column spotlight** — `<Ctrl-v>` select a column, then `<leader>h` to light just that rectangle
-- **Per-buffer state** — switch windows or tabs, your spotlight stays put
-- **Edit-aware** — adapts as the buffer's text shifts
-- **CoC-friendly** — temporarily silences cursor-hold highlights while a spotlight is active, so they don't bleed through the dim
-- **No dependencies** — pure Vimscript, ~200 lines
+- **Works with any motion or text object**: `<leader>h9j`, `<leader>hi{`, `<leader>hit`, `<leader>hap`, … and repeats with `.`
+- **Ex-range support**: `:5,20Spotlight`, `:.,+9Spotlight`
+- **Visual mode**: char-wise, line-wise, and block-wise
+- **Block-column spotlight**: `<Ctrl-v>` a column to light just that rectangle, lined up by screen column (tabs and wide characters included)
+- **Follows your edits**: the region moves with the text as you insert, delete, and undo
+- **Every window, every tab**: splits on the same buffer stay in sync; each buffer keeps its own spotlight
+- **Leaves your state alone**: no marks, no `:match`, no `'eventignore'` changes
+- **Light and dark themes**: picks a dim color that fits `'background'`
+- **Lazy**: nothing beyond a few autocommands loads until you use it
+- **No dependencies**: pure Vimscript, tested on Vim and Neovim
 
 ## Requirements
 
-- Vim 8.0+ or Neovim
+- Vim 8.2+ or Neovim 0.5+
+- In Vim, `+textprop` lets the region follow edits (check with `:echo has('textprop')`). Without it the plugin still works, but the region stays on fixed coordinates.
 
 ## Installation
 
@@ -26,32 +31,33 @@ A Vim plugin that puts a literal spotlight on your code. Select a region — by 
 Plug 'arthurdaquinosilva/vim-spotlight'
 ```
 
-### [packer.nvim](https://github.com/wbthomason/packer.nvim)
-```lua
-use 'arthurdaquinosilva/vim-spotlight'
-```
-
 ### [lazy.nvim](https://github.com/folke/lazy.nvim)
 ```lua
 { 'arthurdaquinosilva/vim-spotlight' }
 ```
 
-### Native packages (Vim 8 / Neovim)
+### [packer.nvim](https://github.com/wbthomason/packer.nvim)
+```lua
+use 'arthurdaquinosilva/vim-spotlight'
+```
+
+### Native packages
 ```sh
 git clone https://github.com/arthurdaquinosilva/vim-spotlight \
     ~/.vim/pack/plugins/start/vim-spotlight
+vim -u NONE -c 'helptags ~/.vim/pack/plugins/start/vim-spotlight/doc' -c q
 ```
 
 ## Usage
 
 ### Default mappings
 
-| Mode   | Keystroke                       | Action                                  |
-| ------ | ------------------------------- | --------------------------------------- |
-| Normal | `<leader>h{motion}`             | Spotlight the motion / text object      |
-| Normal | `<leader>h` *(spotlight on)*    | Clear                                   |
-| Visual | `<leader>h`                     | Toggle on the current selection         |
-| Visual | `<Ctrl-v>{select}` → `<leader>h`| Toggle on the selected column block     |
+| Mode   | Keystroke                        | Action                                   |
+| ------ | -------------------------------- | ---------------------------------------- |
+| Normal | `<leader>h{motion}`              | Spotlight the motion / text object       |
+| Normal | `<leader>h` *(spotlight on)*     | Clear                                    |
+| Visual | `<leader>h`                      | Spotlight the selection (replaces)       |
+| Visual | `<Ctrl-v>{select}` → `<leader>h` | Spotlight the selected column block      |
 
 ### Operator examples
 
@@ -67,11 +73,11 @@ git clone https://github.com/arthurdaquinosilva/vim-spotlight \
 <leader>hiw         " inner word
 ```
 
-Any motion or text object you'd hand to `d` or `y` works here — that's the whole point of building it as an operator.
+Any motion or text object you'd hand to `d` or `y` works here. That's the whole point of building it as an operator.
 
 ### Block-column selection
 
-Enter blockwise visual mode with `<Ctrl-v>`, select a rectangular column, then press `<leader>h`. Instead of dimming only the partial first and last lines (as a char-wise selection does), the dim covers the columns *outside* the block on **every** line in the range — leaving a vertical band of code lit. Great for focusing on one aligned column: a list of values, a table field, an indentation level.
+Enter blockwise Visual mode with `<Ctrl-v>`, select a rectangle, then press `<leader>h`. The dim covers the columns *outside* the block on **every** line in the range, leaving a vertical band of code lit. Great for one aligned column: a list of values, a table field, an indentation level. Extend the block with `$` to keep everything right of the left edge lit.
 
 ```vim
 <Ctrl-v>5j6l<leader>h    " light a 6-line × 7-column block
@@ -82,25 +88,34 @@ Enter blockwise visual mode with `<Ctrl-v>`, select a rectangular column, then p
 ```vim
 :5,20Spotlight      " keep lines 5–20 bright, dim the rest
 :.,+9Spotlight      " current line + 9 below
-:.,$Spotlight       " current line to end of file
 :Spotlight          " current line only
+:Spotlight!         " clear
 :SpotlightClear     " clear
 ```
 
 ## Configuration
 
+| Option                               | Default       | Description                                                       |
+| ------------------------------------ | ------------- | ----------------------------------------------------------------- |
+| `g:spotlight_mapping`                | `'<leader>h'` | Key for the default mappings                                      |
+| `g:spotlight_no_default_mappings`    | `0`           | Set to `1` to define no mappings                                  |
+| `g:spotlight_priority`               | `100`         | Match priority; raise it if other highlights show through the dim |
+| `g:spotlight_suppress_cursor_events` | `0`           | Silence cursor events while a spotlight is on (see below)         |
+
 ### Custom colors
 
-The plugin defines `SpotlightDim` with `:highlight default`, so anything in your colorscheme wins:
+`SpotlightDim` is defined with `:highlight default`, so your colorscheme or vimrc wins:
 
 ```vim
 highlight SpotlightDim ctermfg=240 guifg=#3a3a3a
+" or
+highlight link SpotlightDim Comment
 ```
 
-If you want a custom dim color to survive `:colorscheme` changes, set it in a `ColorScheme` autocmd of your own:
+Most colorschemes clear every group when they load. To keep your color across `:colorscheme`, set it from a `ColorScheme` autocommand:
 
 ```vim
-augroup my_spotlight_color
+augroup my_spotlight
     autocmd!
     autocmd ColorScheme * highlight SpotlightDim ctermfg=240 guifg=#3a3a3a
 augroup END
@@ -108,22 +123,39 @@ augroup END
 
 ### Custom mappings
 
-Disable defaults and map your own keys to the `<Plug>` targets:
-
 ```vim
+let g:spotlight_mapping = '<leader>s'       " just change the key
+" or take full control:
 let g:spotlight_no_default_mappings = 1
-
-vmap <silent> ,s <Plug>(SpotlightToggle)
-nmap <silent> ,s <Plug>(SpotlightOperator)
+nmap ,s <Plug>(SpotlightOperator)
+xmap ,s <Plug>(SpotlightVisual)             " or <Plug>(SpotlightToggle)
 ```
+
+### Mapping conflicts
+
+If another mapping starts with your spotlight key (vim-gitgutter's `<leader>hp`, `<leader>hs`, … for example), the default mapping is skipped. Otherwise Vim would pause for `'timeoutlen'` on every press. Choose a free key with `g:spotlight_mapping`.
+
+### Cursor-highlight plugins (coc.nvim etc.)
+
+Plugins that highlight the word under the cursor can draw over the dim. Setting `g:spotlight_suppress_cursor_events = 1` adds `CursorMoved`, `CursorMovedI`, `CursorHold` and `CursorHoldI` to `'eventignore'` while the current buffer has a spotlight. This is global, and matchparen stops updating while it's in effect, so it's opt-in.
 
 ## How it works
 
-Vim's [`matchadd()`](https://vimhelp.org/eval.txt.html#matchadd%28%29) attaches a highlight group to a regex pattern across the current window. The plugin builds patterns that match everything *outside* your region — earlier lines, later lines, the partial first/last lines for char-wise selections, or the left/right column bands for block-wise selections — and assigns each one the `SpotlightDim` highlight. The region itself gets no pattern, so it shows in your normal colors.
+Vim's [`matchadd()`](https://vimhelp.org/builtin.txt.html#matchadd%28%29) attaches a highlight group to a pattern in one window. The plugin builds patterns for everything *outside* your region (earlier lines, later lines, and the partial first/last line or the columns left and right of a block) and gives them the `SpotlightDim` highlight. The region itself gets no pattern, so it keeps its normal colors.
 
-State (active flag, selection bounds, position-tracking marks) lives in a per-buffer dictionary. Because `matchadd` IDs are window-local but state is per-buffer, the plugin re-runs its match logic on `BufEnter` / `WinEnter`, clearing any stale `SpotlightDim` matches in the current window first. That keeps splits and tabs in sync.
+The region is stored per buffer and anchored with a text property (Vim) or an extmark (Neovim), which move with the text as you edit. After each change the patterns are rebuilt from the anchor in every window showing the buffer.
 
 For the full picture: `:help spotlight`.
+
+## Development
+
+```sh
+make test        # run the suite in Vim and Neovim
+make test-vim    # or one editor; override the binary with VIM=/path/to/vim
+make lint        # vint
+```
+
+Tests are plain Vimscript (`test/test_*.vim`, no dependencies). Run a subset with `SPOTLIGHT_TEST_FILTER=block make test-vim`.
 
 ## License
 
