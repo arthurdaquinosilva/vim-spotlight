@@ -10,9 +10,11 @@ permissions:
   contents: read
 
 jobs:
+  # Pinned rather than ubuntu-latest: building old Vim releases from source
+  # breaks with newer compilers (e.g. GCC 15 defaults to C23).
   test:
     name: ${{ matrix.neovim && 'Neovim' || 'Vim' }} ${{ matrix.version }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +29,7 @@ jobs:
           - { neovim: true, version: stable }
           - { neovim: true, version: nightly }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: rhysd/action-setup-vim@v1
         id: editor
@@ -42,10 +44,10 @@ jobs:
           NVIM=${{ steps.editor.outputs.executable }}
 
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       # vint still imports pkg_resources, removed in setuptools 81.
