@@ -262,15 +262,18 @@ autoload script is only loaded once you use the plugin.
 ==============================================================================
 10. TROUBLESHOOTING                                *spotlight-troubleshooting*
 
-<leader>h does nothing in Normal mode ~
-    Another mapping that starts with the same keys was already defined (for
-    example vim-gitgutter's <leader>hp and <leader>hs). Mapping <leader>h as
-    well would make Vim wait 'timeoutlen' after every press, so the plugin
-    skips its default. Pick another key with |g:spotlight_mapping|, or map a
+<leader>h does nothing ~
+    You already had a mapping for exactly <leader>h; the plugin never
+    overwrites it. Pick another key with |g:spotlight_mapping|, or map a
     |spotlight-plug| target yourself. Check with:
 >
         :verbose nmap <leader>h
 <
+Clearing with <leader>h is slow ~
+    Another mapping starts with the same keys (for example vim-gitgutter's
+    <leader>hp), so after a bare <leader>h Vim waits 'timeoutlen' to see
+    whether more keys follow. <leader>h{motion} is not affected. Pick a key
+    nothing else starts with via |g:spotlight_mapping|.
 Highlights from another plugin show through the dim ~
     Raise |g:spotlight_priority|. For highlights that follow the cursor, see
     |g:spotlight_suppress_cursor_events|.

@@ -81,9 +81,9 @@ nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
 
 " ── Default key bindings ─────────────────────────────────────────────────────
 " Opt out with: let g:spotlight_no_default_mappings = 1
-" The default key is skipped when another mapping already starts with it or is
-" a prefix of it (e.g. vim-gitgutter's <leader>hp), since that would make Vim
-" wait for 'timeoutlen' on every press.
+" Longer mappings that merely start with the same key (e.g. vim-gitgutter's
+" <leader>hp) are fine: <leader>h{motion} resolves as soon as the motion is
+" typed. Only an existing mapping for the exact key is left alone.
 
 function! s:map_default(mode, plugs) abort
     for l:plug in a:plugs
@@ -92,7 +92,7 @@ function! s:map_default(mode, plugs) abort
         endif
     endfor
     let l:key = get(g:, 'spotlight_mapping', '<leader>h')
-    if !empty(mapcheck(l:key, a:mode))
+    if !empty(maparg(l:key, a:mode))
         return
     endif
     execute a:mode . 'map <unique> ' . l:key . ' ' . a:plugs[0]

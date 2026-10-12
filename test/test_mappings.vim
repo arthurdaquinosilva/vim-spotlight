@@ -64,15 +64,30 @@ function! Test_custom_default_key() abort
     endtry
 endfunction
 
-function! Test_ambiguous_prefix_mapping_is_not_shadowed() abort
-    " vim-gitgutter style: <leader>hp etc. would make <leader>h ambiguous.
+function! Test_mapped_alongside_longer_mappings_with_same_prefix() abort
+    " vim-gitgutter style <leader>hp must not stop the default mapping.
     nnoremap <leader>hp :let g:hunk_preview = 1<CR>
     try
         call s:load_plugin_fresh()
-        call assert_equal('', maparg('<leader>h', 'n'))
-        call assert_equal('<Plug>(SpotlightVisual)', maparg('<leader>h', 'x'))
+        call assert_equal('<Plug>(SpotlightOperator)', maparg('<leader>h', 'n'))
+        call SetLines(['one', 'two', 'three'])
+        call Keys('2G\hj')
+        call assert_equal(['___', 'two', 'three'], Screen())
     finally
         nunmap <leader>hp
+        call s:load_plugin_fresh()
+    endtry
+endfunction
+
+function! Test_existing_exact_mapping_is_kept() abort
+    silent! nunmap <leader>h
+    nnoremap <leader>h :let g:mine = 1<CR>
+    try
+        unlet! g:loaded_spotlight
+        runtime plugin/spotlight.vim
+        call assert_equal(':let g:mine = 1<CR>', maparg('<leader>h', 'n'))
+    finally
+        nunmap <leader>h
         call s:load_plugin_fresh()
     endtry
 endfunction

@@ -133,7 +133,7 @@ xmap ,s <Plug>(SpotlightVisual)             " or <Plug>(SpotlightToggle)
 
 ### Mapping conflicts
 
-If another mapping starts with your spotlight key (vim-gitgutter's `<leader>hp`, `<leader>hs`, … for example), the default mapping is skipped. Otherwise Vim would pause for `'timeoutlen'` on every press. Choose a free key with `g:spotlight_mapping`.
+Other mappings that start with the same key (vim-gitgutter's `<leader>hp`, `<leader>hs`, … for example) coexist fine: `<leader>h{motion}` resolves as soon as you type the motion. Only clearing with a bare `<leader>h` waits `'timeoutlen'` for the next key. If that delay bothers you, pick another key with `g:spotlight_mapping`. A mapping you already have for the exact key is never overwritten.
 
 ### Cursor-highlight plugins (coc.nvim etc.)
 
