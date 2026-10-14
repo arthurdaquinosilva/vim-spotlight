@@ -5,7 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-Changes since the initial version.
+## [1.0.0] - 2026-10-14
+
+First tagged release. Changes since the initial version:
 
 ### Changed
 
@@ -41,3 +43,6 @@ Changes since the initial version.
 ## Initial version
 
 - Released as commit `7960f6f` (untagged).
+
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/7960f6f...v1.0.0
