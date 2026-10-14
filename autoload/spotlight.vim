@@ -38,8 +38,12 @@ let s:ei_added = []
 let s:suppressing = 0
 " :match highlights hidden while suppressing, by window ID.
 let s:hidden_match = {}
-" Match groups of cursor-word highlights (coc.nvim's document highlight).
-let s:cursor_hl_groups = '^CocHighlight'
+let s:sweep_timer = -1
+let s:sweep_interval = 100
+let s:sweep_count = 50
+" Match groups of cursor-driven highlights: coc.nvim's document highlight and
+" matching-pair highlights (vim-matchup, matchparen-style plugins).
+let s:cursor_hl_groups = '^\%(CocHighlight\|MatchParen\|MatchWord\)'
 
 " ── Small helpers ────────────────────────────────────────────────────────────
 
@@ -314,9 +318,15 @@ endfunction
 " Word-under-cursor highlights are updated on CursorMoved, which is now
 " ignored, so one drawn just before the spotlight went on would stay frozen.
 " While suppressing, the plugin therefore hides them in the spotlighted
-" windows: the :match highlight (what hand-rolled cursor-word scripts use)
-" and coc.nvim's document highlight. The :match is put back when the
-" suppression ends, and CursorMoved is fired once so such scripts recompute.
+" windows: the :match highlight (what hand-rolled cursor-word scripts use),
+" the built-in matchparen's :3match, coc.nvim's document highlight and
+" vim-matchup's pair highlight. The :match is put back when the suppression
+" ends, and CursorMoved is fired once so all of them recompute.
+"
+" coc.nvim requests its highlight on CursorHold and applies the answer
+" whenever the language server replies (up to its documentHighlight.timeout,
+" 5s at most), so a reply can land after the spotlight went on. For that long
+" the spotlighted windows are swept again every 100ms.
 
 function! s:hide_cursor_highlights() abort
     for l:winid in win_findbuf(bufnr('%'))
@@ -324,11 +334,34 @@ function! s:hide_cursor_highlights() abort
             if l:m.id == 1 && !has_key(s:hidden_match, l:winid)
                 let s:hidden_match[l:winid] = l:m
             endif
-            if l:m.id == 1 || l:m.group =~# s:cursor_hl_groups
+            if l:m.id == 1 || l:m.id == 3 || l:m.group =~# s:cursor_hl_groups
                 silent! call matchdelete(l:m.id, l:winid)
             endif
         endfor
     endfor
+endfunction
+
+function! s:sweep_late_highlights() abort
+    call s:stop_sweep()
+    if exists('*timer_start')
+        let s:sweep_timer = timer_start(s:sweep_interval,
+            \ function('s:on_sweep'), {'repeat': s:sweep_count})
+    endif
+endfunction
+
+function! s:stop_sweep() abort
+    if s:sweep_timer != -1
+        call timer_stop(s:sweep_timer)
+        let s:sweep_timer = -1
+    endif
+endfunction
+
+function! s:on_sweep(timer) abort
+    if s:suppressing && !empty(get(b:, 'spotlight', {}))
+        call s:hide_cursor_highlights()
+    else
+        call s:stop_sweep()
+    endif
 endfunction
 
 function! s:restore_cursor_highlights() abort
@@ -359,10 +392,12 @@ function! s:update_suppression() abort
         let s:ei_added = filter(copy(s:cursor_events),
             \ 'index(l:current, v:val) < 0 && index(l:current, "all") < 0')
         let &eventignore = join(l:current + s:ei_added, ',')
+        call s:sweep_late_highlights()
     else
         let &eventignore = join(filter(l:current,
             \ 'index(s:ei_added, v:val) < 0'), ',')
         let s:ei_added = []
+        call s:stop_sweep()
         call s:restore_cursor_highlights()
     endif
 endfunction

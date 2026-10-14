@@ -137,7 +137,7 @@ Other mappings that start with the same key (vim-gitgutter's `<leader>hp`, `<lea
 
 ### Cursor-highlight plugins (coc.nvim etc.)
 
-Plugins and scripts that highlight the word under the cursor can draw over the dim. Setting `g:spotlight_suppress_cursor_events = 1` adds `CursorMoved`, `CursorMovedI`, `CursorHold` and `CursorHoldI` to `'eventignore'` while the current buffer has a spotlight. It also hides any word highlight already on screen: coc.nvim's document highlight and the window's `:match` (which most cursor-word scripts use). The `:match` is restored when the spotlight ends. This is global, and matchparen stops updating while it's in effect, so it's opt-in.
+Plugins and scripts that highlight the word under the cursor can draw over the dim. Setting `g:spotlight_suppress_cursor_events = 1` adds `CursorMoved`, `CursorMovedI`, `CursorHold` and `CursorHoldI` to `'eventignore'` while the current buffer has a spotlight. It also hides cursor-driven highlights already on screen: the window's `:match` (which most cursor-word scripts use), matchparen and vim-matchup's pair highlights, and coc.nvim's document highlight, including a language-server reply that arrives just after the spotlight went on. The `:match` is restored when the spotlight ends. This is global, and matchparen stops updating while it's in effect, so it's opt-in.
 
 ## How it works
 

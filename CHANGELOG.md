@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- With `g:spotlight_suppress_cursor_events`, matching-pair highlights (vim-matchup's `MatchWord`/`MatchParen`, matchparen's `:3match`) stayed frozen, as did a coc.nvim document highlight whose language-server reply arrived after the spotlight went on (common in JSX/HTML).
+
 ## [1.0.0] - 2026-10-14
 
 First tagged release. Changes since the initial version:

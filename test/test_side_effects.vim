@@ -123,3 +123,48 @@ function! Test_suppression_restores_match_when_leaving_buffer() abort
     call assert_equal(['SpotlightTestWord'],
         \ map(filter(getmatches(l:win), 'v:val.id == 1'), 'v:val.group'))
 endfunction
+
+function! Test_suppression_removes_coc_highlight_arriving_late() abort
+    " coc.nvim asks the language server on CursorHold and draws the answer
+    " whenever it arrives, possibly after the spotlight went on.
+    if !exists('*timer_start')
+        throw 'Skipped: needs +timers'
+    endif
+    let g:spotlight_suppress_cursor_events = 1
+    highlight CocHighlightText ctermbg=238
+    call SetLines(['<div>', '  x', '</div>'])
+    1,3Spotlight
+    call matchaddpos('CocHighlightText', [[1, 2, 3], [3, 3, 3]])
+    sleep 300m
+    call assert_equal([], filter(getmatches(), 'v:val.group =~# "^CocHighlight"'))
+endfunction
+
+function! Test_sweep_stops_when_spotlight_cleared() abort
+    if !exists('*timer_start')
+        throw 'Skipped: needs +timers'
+    endif
+    let g:spotlight_suppress_cursor_events = 1
+    highlight CocHighlightText ctermbg=238
+    call SetLines(['<div>', '  x', '</div>'])
+    1,3Spotlight
+    SpotlightClear
+    call matchaddpos('CocHighlightText', [[1, 2, 3]])
+    sleep 300m
+    call assert_equal(['CocHighlightText'],
+        \ map(filter(getmatches(), 'v:val.group =~# "^Coc"'), 'v:val.group'))
+endfunction
+
+function! Test_suppression_hides_matching_pair_highlights() abort
+    " vim-matchup (MatchWord/MatchParen) and the built-in matchparen (:3match)
+    " update on CursorMoved too, so they would freeze the same way.
+    let g:spotlight_suppress_cursor_events = 1
+    highlight MatchWord cterm=underline
+    highlight MatchParenCur cterm=bold
+    highlight MatchParen ctermbg=238
+    call SetLines(['<div>', '  x', '</div>'])
+    call matchaddpos('MatchWord', [[1, 2, 3], [3, 3, 3]])
+    call matchaddpos('MatchParenCur', [[1, 1]])
+    3match MatchParen /x/
+    1,3Spotlight
+    call assert_equal(['SpotlightDim'], uniq(map(getmatches(), 'v:val.group')))
+endfunction

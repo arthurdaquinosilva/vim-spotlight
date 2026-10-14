@@ -185,13 +185,18 @@ g:spotlight_suppress_cursor_events
                         (for example coc.nvim's document highlight) from
                         drawing over the dim.
 
-                        A word highlight drawn just before the spotlight went
-                        on would otherwise stay frozen, so while this is in
-                        effect the spotlighted windows also hide their
-                        |:match| highlight (what most cursor-word scripts
-                        use) and coc.nvim's document highlight. The |:match|
-                        is put back afterwards, and |CursorMoved| is fired
-                        once so such scripts update for the current word.
+                        Highlights that follow the cursor would otherwise
+                        stay frozen, so while this is in effect the
+                        spotlighted windows also hide:
+                          - their |:match| highlight (what most cursor-word
+                            scripts use) and |matchparen|'s :3match,
+                          - coc.nvim's document highlight, including a reply
+                            from the language server that arrives up to 5
+                            seconds after the spotlight went on,
+                          - matching-pair highlights such as vim-matchup's
+                            (MatchParen*, MatchWord*).
+                        The |:match| is put back afterwards, and
+                        |CursorMoved| is fired once so the others update.
 
                         This is global: while it is in effect no plugin sees
                         these events, and |matchparen| stops updating. Only
