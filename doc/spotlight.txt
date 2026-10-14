@@ -181,9 +181,17 @@ g:spotlight_suppress_cursor_events
                         Set to 1 to add CursorMoved, CursorMovedI,
                         CursorHold and CursorHoldI to 'eventignore' while the
                         current buffer has a spotlight. This stops plugins
-                        that highlight the word under the cursor (for example
-                        coc.nvim's document highlight) from drawing over the
-                        dim.
+                        and scripts that highlight the word under the cursor
+                        (for example coc.nvim's document highlight) from
+                        drawing over the dim.
+
+                        A word highlight drawn just before the spotlight went
+                        on would otherwise stay frozen, so while this is in
+                        effect the spotlighted windows also hide their
+                        |:match| highlight (what most cursor-word scripts
+                        use) and coc.nvim's document highlight. The |:match|
+                        is put back afterwards, and |CursorMoved| is fired
+                        once so such scripts update for the current word.
 
                         This is global: while it is in effect no plugin sees
                         these events, and |matchparen| stops updating. Only

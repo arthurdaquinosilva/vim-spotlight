@@ -64,3 +64,62 @@ function! Test_priority_is_configurable() abort
     2Spotlight
     call assert_equal([42], uniq(map(SpotlightMatches(), 'v:val.priority')))
 endfunction
+
+function! Test_suppression_clears_existing_coc_highlight() abort
+    " coc.nvim drew its word highlight before the spotlight went on; with
+    " CursorMoved ignored it would never be removed.
+    let g:spotlight_suppress_cursor_events = 1
+    call SetLines(['setStock: x', 'setStock()', 'other'])
+    highlight CocHighlightText ctermbg=238
+    call matchaddpos('CocHighlightText', [[1, 1, 8], [2, 1, 8]])
+    1,2Spotlight
+    call assert_equal([], filter(getmatches(), 'v:val.group =~# "^CocHighlight"'))
+endfunction
+
+function! Test_coc_highlight_untouched_without_suppression() abort
+    call SetLines(['setStock: x', 'setStock()', 'other'])
+    highlight CocHighlightText ctermbg=238
+    call matchaddpos('CocHighlightText', [[1, 1, 8]])
+    1,2Spotlight
+    call assert_equal(['CocHighlightText'],
+        \ map(filter(getmatches(), 'v:val.group =~# "^Coc"'), 'v:val.group'))
+endfunction
+
+function! Test_suppression_hides_and_restores_match() abort
+    " A cursor-word script using :match (updated on CursorMoved) must not
+    " leave its highlight frozen on screen while the spotlight is on.
+    let g:spotlight_suppress_cursor_events = 1
+    highlight SpotlightTestWord ctermbg=238
+    call SetLines(['setStock: x', 'setStock()', 'other'])
+    match SpotlightTestWord /setStock/
+    let g:moved = 0
+    augroup spotlight_test_moved
+        autocmd!
+        autocmd CursorMoved * let g:moved += 1
+    augroup END
+    try
+        1,2Spotlight
+        call assert_equal([], filter(getmatches(), 'v:val.id == 1'))
+        SpotlightClear
+        call assert_equal(['SpotlightTestWord'],
+            \ map(filter(getmatches(), 'v:val.id == 1'), 'v:val.group'))
+        " Cursor-word scripts get a chance to recompute for the current word.
+        call assert_true(g:moved > 0)
+    finally
+        autocmd! spotlight_test_moved
+        augroup! spotlight_test_moved
+        unlet g:moved
+    endtry
+endfunction
+
+function! Test_suppression_restores_match_when_leaving_buffer() abort
+    let g:spotlight_suppress_cursor_events = 1
+    highlight SpotlightTestWord ctermbg=238
+    call SetLines(['one', 'two'])
+    match SpotlightTestWord /one/
+    2Spotlight
+    let l:win = win_getid()
+    new
+    call assert_equal(['SpotlightTestWord'],
+        \ map(filter(getmatches(l:win), 'v:val.id == 1'), 'v:val.group'))
+endfunction

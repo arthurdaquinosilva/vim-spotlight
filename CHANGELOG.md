@@ -10,7 +10,7 @@ Changes since the initial version.
 ### Changed
 
 - **Visual-mode `<leader>h` now replaces** an existing spotlight instead of toggling it off. The old behavior is still available as `<Plug>(SpotlightToggle)`.
-- Cursor-event suppression (the coc.nvim workaround) is now **opt-in** via `g:spotlight_suppress_cursor_events`. It used to be always on, which disabled `CursorMoved`/`CursorHold` for every plugin and matchparen.
+- Cursor-event suppression (the coc.nvim workaround) is now **opt-in** via `g:spotlight_suppress_cursor_events`. It used to be always on, which disabled `CursorMoved`/`CursorHold` for every plugin and matchparen. When on, it also hides a word-under-cursor highlight already on screen (`:match`, coc.nvim) and restores the `:match` afterwards.
 - Visual mappings use `xmap` instead of `vmap`, so typing over a Select-mode selection (snippet placeholders) no longer triggers the plugin.
 - The default dim color follows `'background'`; light themes get `ctermfg=253 guifg=#dadada`.
 - Requires Vim 8.2+ or Neovim 0.5+.

@@ -35,6 +35,11 @@ let s:prop_type = 'spotlight_anchor'
 let s:ns = s:has_nvim ? nvim_create_namespace('spotlight') : 0
 let s:cursor_events = ['CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI']
 let s:ei_added = []
+let s:suppressing = 0
+" :match highlights hidden while suppressing, by window ID.
+let s:hidden_match = {}
+" Match groups of cursor-word highlights (coc.nvim's document highlight).
+let s:cursor_hl_groups = '^CocHighlight'
 
 " ── Small helpers ────────────────────────────────────────────────────────────
 
@@ -305,22 +310,60 @@ endfunction
 " it is opt-in via g:spotlight_suppress_cursor_events. Only the events this
 " plugin added are ever removed again, so a user's own 'eventignore' edits are
 " preserved.
+"
+" Word-under-cursor highlights are updated on CursorMoved, which is now
+" ignored, so one drawn just before the spotlight went on would stay frozen.
+" While suppressing, the plugin therefore hides them in the spotlighted
+" windows: the :match highlight (what hand-rolled cursor-word scripts use)
+" and coc.nvim's document highlight. The :match is put back when the
+" suppression ends, and CursorMoved is fired once so such scripts recompute.
+
+function! s:hide_cursor_highlights() abort
+    for l:winid in win_findbuf(bufnr('%'))
+        for l:m in getmatches(l:winid)
+            if l:m.id == 1 && !has_key(s:hidden_match, l:winid)
+                let s:hidden_match[l:winid] = l:m
+            endif
+            if l:m.id == 1 || l:m.group =~# s:cursor_hl_groups
+                silent! call matchdelete(l:m.id, l:winid)
+            endif
+        endfor
+    endfor
+endfunction
+
+function! s:restore_cursor_highlights() abort
+    for [l:winid, l:m] in items(s:hidden_match)
+        let l:matches = getmatches(l:winid)
+        if win_id2win(l:winid) && empty(filter(copy(l:matches), 'v:val.id == 1'))
+            call setmatches(l:matches + [l:m], l:winid)
+        endif
+    endfor
+    let s:hidden_match = {}
+    if exists('#CursorMoved')
+        silent doautocmd <nomodeline> CursorMoved
+    endif
+endfunction
 
 function! s:update_suppression() abort
     let l:want = get(g:, 'spotlight_suppress_cursor_events', 0)
         \ && !empty(get(b:, 'spotlight', {}))
+    if l:want
+        call s:hide_cursor_highlights()
+    endif
+    if l:want == s:suppressing
+        return
+    endif
+    let s:suppressing = l:want
     let l:current = split(&eventignore, ',')
-    if l:want && empty(s:ei_added)
-        if index(l:current, 'all') >= 0
-            return
-        endif
+    if l:want
         let s:ei_added = filter(copy(s:cursor_events),
-            \ 'index(l:current, v:val) < 0')
+            \ 'index(l:current, v:val) < 0 && index(l:current, "all") < 0')
         let &eventignore = join(l:current + s:ei_added, ',')
-    elseif !l:want && !empty(s:ei_added)
+    else
         let &eventignore = join(filter(l:current,
             \ 'index(s:ei_added, v:val) < 0'), ',')
         let s:ei_added = []
+        call s:restore_cursor_highlights()
     endif
 endfunction
 
