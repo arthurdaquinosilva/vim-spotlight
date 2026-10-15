@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-15
+
 ### Added
 
 - `g:spotlight_hide_search`: hide the search highlight (`'hlsearch'`) while a spotlight is on, restoring it afterwards.
@@ -54,6 +56,7 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/7960f6f...v1.0.0
