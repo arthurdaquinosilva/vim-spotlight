@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- `g:spotlight_hide_search`: hide the search highlight (`'hlsearch'`) while a spotlight is on, restoring it afterwards.
+
 ## [1.0.1] - 2026-10-14
 
 ### Fixed

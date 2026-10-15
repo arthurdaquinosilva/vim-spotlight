@@ -9,7 +9,7 @@ function! ResetEditor() abort
     enew!
     silent! %bwipeout!
     set selection& virtualedit& eventignore& background=dark tabstop=8
-    unlet! g:spotlight_suppress_cursor_events g:spotlight_priority
+    unlet! g:spotlight_suppress_cursor_events g:spotlight_priority g:spotlight_hide_search
     call clearmatches()
 endfunction
 

@@ -175,6 +175,19 @@ g:spotlight_priority    Default: 100
                         Highlights with a higher priority show through the
                         dim; raise this if another plugin's highlights do.
 
+                                                  *g:spotlight_hide_search*
+g:spotlight_hide_search Default: 0
+                        Set to 1 to hide the search highlight while the
+                        current buffer has a spotlight. Searching, |star|,
+                        |n| and |N| keep working; matches just aren't lit.
+
+                        'hlsearch' is a global option and |n| turns the
+                        highlight back on after |:nohlsearch|, so the plugin
+                        turns 'hlsearch' off while a spotlight is shown and
+                        restores it when you clear the spotlight or leave the
+                        buffer. If you turn 'hlsearch' on yourself in the
+                        meantime, your setting is kept.
+
                                         *g:spotlight_suppress_cursor_events*
 g:spotlight_suppress_cursor_events
                         Default: 0

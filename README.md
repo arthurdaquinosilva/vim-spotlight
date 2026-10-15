@@ -101,6 +101,7 @@ Enter blockwise Visual mode with `<Ctrl-v>`, select a rectangle, then press `<le
 | `g:spotlight_no_default_mappings`    | `0`           | Set to `1` to define no mappings                                  |
 | `g:spotlight_priority`               | `100`         | Match priority; raise it if other highlights show through the dim |
 | `g:spotlight_suppress_cursor_events` | `0`           | Silence cursor events while a spotlight is on (see below)         |
+| `g:spotlight_hide_search`            | `0`           | Hide the search highlight while a spotlight is on                 |
 
 ### Custom colors
 
@@ -138,6 +139,10 @@ Other mappings that start with the same key (vim-gitgutter's `<leader>hp`, `<lea
 ### Cursor-highlight plugins (coc.nvim etc.)
 
 Plugins and scripts that highlight the word under the cursor can draw over the dim. Setting `g:spotlight_suppress_cursor_events = 1` adds `CursorMoved`, `CursorMovedI`, `CursorHold` and `CursorHoldI` to `'eventignore'` while the current buffer has a spotlight. It also hides cursor-driven highlights already on screen: the window's `:match` (which most cursor-word scripts use), matchparen and vim-matchup's pair highlights, and coc.nvim's document highlight, including a language-server reply that arrives just after the spotlight went on. The `:match` is restored when the spotlight ends. This is global, and matchparen stops updating while it's in effect, so it's opt-in.
+
+### Search highlight
+
+With `'hlsearch'`, matches inside the spotlight stay highlighted (matches outside are dimmed). Set `g:spotlight_hide_search = 1` to hide the search highlight while a spotlight is on. `*`, `n` and `N` still work, and `'hlsearch'` is restored when the spotlight ends.
 
 ## How it works
 

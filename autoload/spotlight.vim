@@ -41,6 +41,8 @@ let s:hidden_match = {}
 let s:sweep_timer = -1
 let s:sweep_interval = 100
 let s:sweep_count = 50
+let s:hls_hidden = 0
+let s:hls_saved = 0
 " Match groups of cursor-driven highlights: coc.nvim's document highlight and
 " matching-pair highlights (vim-matchup, matchparen-style plugins).
 let s:cursor_hl_groups = '^\%(CocHighlight\|MatchParen\|MatchWord\)'
@@ -306,6 +308,7 @@ function! s:render_buffer(bufnr) abort
         call s:render_window(l:winid)
     endfor
     call s:update_suppression()
+    call s:update_search_highlight()
 endfunction
 
 " ── Optional cursor-event suppression ────────────────────────────────────────
@@ -399,6 +402,28 @@ function! s:update_suppression() abort
         let s:ei_added = []
         call s:stop_sweep()
         call s:restore_cursor_highlights()
+    endif
+endfunction
+
+" ── Optional search-highlight hiding ─────────────────────────────────────────
+"
+" Off by default (g:spotlight_hide_search). 'hlsearch' is global and n/N turn
+" the highlight back on after :nohlsearch, so the option itself is switched
+" off while the current buffer has a spotlight. It is restored afterwards,
+" unless the user turned it back on meanwhile.
+
+function! s:update_search_highlight() abort
+    let l:want = get(g:, 'spotlight_hide_search', 0)
+        \ && !empty(get(b:, 'spotlight', {}))
+    if l:want && !s:hls_hidden
+        let s:hls_hidden = 1
+        let s:hls_saved = &hlsearch
+        set nohlsearch
+    elseif !l:want && s:hls_hidden
+        let s:hls_hidden = 0
+        if !&hlsearch
+            let &hlsearch = s:hls_saved
+        endif
     endif
 endfunction
 
@@ -586,6 +611,7 @@ function! spotlight#sync_window() abort
     else
         call s:render_window(win_getid())
         call s:update_suppression()
+        call s:update_search_highlight()
     endif
 endfunction
 
