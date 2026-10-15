@@ -12,7 +12,7 @@ A Vim plugin that puts a literal spotlight on your code. Select a region by moti
 - **Ex-range support**: `:5,20Spotlight`, `:.,+9Spotlight`
 - **Visual mode**: char-wise, line-wise, and block-wise
 - **Block-column spotlight**: `<Ctrl-v>` a column to light just that rectangle, lined up by screen column (tabs and wide characters included)
-- **Several regions at once**: add more places with `<leader>H`, switch one off with `<leader>Hx`, and step the focus through them with `]H` / `[H`
+- **Several regions at once**: keep pressing `<leader>h` to add more places, switch one off with `<leader>hx`, and step the focus through them with `<leader>hn` / `<leader>hb`. No Shift needed
 - **Follows your edits**: the region moves with the text as you insert, delete, and undo
 - **Every window, every tab**: splits on the same buffer stay in sync; each buffer keeps its own spotlight
 - **Leaves your state alone**: no marks, no `:match`, no `'eventignore'` changes
@@ -53,16 +53,14 @@ vim -u NONE -c 'helptags ~/.vim/pack/plugins/start/vim-spotlight/doc' -c q
 
 ### Default mappings
 
-| Mode   | Keystroke                        | Action                                   |
-| ------ | -------------------------------- | ---------------------------------------- |
-| Normal | `<leader>h{motion}`              | Spotlight the motion / text object       |
-| Normal | `<leader>h` *(spotlight on)*     | Clear                                    |
-| Visual | `<leader>h`                      | Spotlight the selection (replaces)       |
-| Visual | `<Ctrl-v>{select}` → `<leader>h` | Spotlight the selected column block      |
-| Normal | `<leader>H{motion}`              | Add another region                       |
-| Visual | `<leader>H`                      | Add the selection as another region      |
-| Normal | `<leader>Hx`                     | Switch the region under the cursor off/on |
-| Normal | `]H` / `[H`                      | Light only the next / previous region    |
+| Mode   | Keystroke                        | Action                                                  |
+| ------ | -------------------------------- | ------------------------------------------------------- |
+| Normal | `<leader>h{motion}`              | Spotlight the motion / text object (adds when one is on) |
+| Visual | `<leader>h`                      | Spotlight the selection (adds when one is on)           |
+| Visual | `<Ctrl-v>{select}` → `<leader>h` | Spotlight the selected column block                     |
+| Normal | `<leader>hc`                     | Clear everything                                        |
+| Normal | `<leader>hx`                     | Switch the region under the cursor off/on               |
+| Normal | `<leader>hn` / `<leader>hb`      | Light only the next / previous region                   |
 
 ### Operator examples
 
@@ -90,19 +88,19 @@ Enter blockwise Visual mode with `<Ctrl-v>`, select a rectangle, then press `<le
 
 ### Several regions
 
-`<leader>h` lights one region and replaces whatever was lit. `<leader>H` *adds* a region instead, with the same motions, text objects and Visual selections, so you can light a function and the place that calls it at the same time:
+While something is lit, `<leader>h` *adds* another region (same motions, text objects and Visual selections), so you can light a function and the place that calls it at the same time:
 
 ```vim
 <leader>hip         " light this paragraph
-<leader>H}          " ...and also up to the next blank line over there
-<leader>Hi{         " ...and also the inside of these braces
+<leader>h}          " ...and also up to the next blank line over there
+<leader>hi{         " ...and also the inside of these braces
 ```
 
 Everything outside all of them is dimmed. Overlapping regions merge, and each one follows your edits.
 
-- `<leader>Hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**.
-- `]H` lights **only the next region** and jumps to it; keep pressing to walk through them, and past the last one everything is lit again. `[H` goes backwards. Switched-off regions are skipped.
-- A bare `<leader>h` or `:SpotlightClear` removes every region.
+- `<leader>hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**.
+- `<leader>hn` lights **only the next region** and jumps to it; keep pressing to walk through them, and past the last one everything is lit again. `<leader>hb` goes back. Switched-off regions are skipped.
+- `<leader>hc` or `:SpotlightClear` removes every region. To start over with one region, clear first or use `:Spotlight` with a range.
 
 ### Commands
 
@@ -122,10 +120,10 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 | Option                               | Default       | Description                                                       |
 | ------------------------------------ | ------------- | ----------------------------------------------------------------- |
 | `g:spotlight_mapping`                | `'<leader>h'` | Key for the default mappings                                      |
-| `g:spotlight_add_mapping`            | `'<leader>H'` | Key that adds a region                                            |
-| `g:spotlight_toggle_mapping`         | add key + `x` | Key that switches the region under the cursor off/on              |
-| `g:spotlight_next_mapping`           | `']H'`        | Key that lights only the next region                              |
-| `g:spotlight_prev_mapping`           | `'[H'`        | Key that lights only the previous region                          |
+| `g:spotlight_clear_mapping`          | key + `c`     | Clear every region                                                |
+| `g:spotlight_toggle_mapping`         | key + `x`     | Switch the region under the cursor off/on                         |
+| `g:spotlight_next_mapping`           | key + `n`     | Light only the next region                                        |
+| `g:spotlight_prev_mapping`           | key + `b`     | Light only the previous region                                    |
 | `g:spotlight_no_default_mappings`    | `0`           | Set to `1` to define no mappings                                  |
 | `g:spotlight_priority`               | `100`         | Match priority; raise it if other highlights show through the dim |
 | `g:spotlight_suppress_cursor_events` | `0`           | Silence cursor events while a spotlight is on (see below)         |
@@ -153,16 +151,24 @@ augroup END
 ### Custom mappings
 
 ```vim
-let g:spotlight_mapping = '<leader>s'       " just change the key
+let g:spotlight_mapping = '<leader>s'       " change the key (and sc, sx, sn, sb)
 " or take full control:
 let g:spotlight_no_default_mappings = 1
-nmap ,s <Plug>(SpotlightOperator)
-xmap ,s <Plug>(SpotlightVisual)             " or <Plug>(SpotlightToggle)
+nmap ,s  <Plug>(SpotlightAddOperator)
+xmap ,s  <Plug>(SpotlightAddVisual)
+nmap ,sc <Plug>(SpotlightClear)
+```
+
+Prefer one region at a time, the 1.x way (the key replaces the spotlight, and pressed alone clears it)? Map `<Plug>(SpotlightOperator)` and `<Plug>(SpotlightVisual)` instead:
+
+```vim
+nmap <leader>h <Plug>(SpotlightOperator)
+xmap <leader>h <Plug>(SpotlightVisual)
 ```
 
 ### Mapping conflicts
 
-Other mappings that start with the same key (vim-gitgutter's `<leader>hp`, `<leader>hs`, … for example) coexist fine: `<leader>h{motion}` resolves as soon as you type the motion. Only clearing with a bare `<leader>h` waits `'timeoutlen'` for the next key. If that delay bothers you, pick another key with `g:spotlight_mapping`. A mapping you already have for the exact key is never overwritten.
+Other mappings that start with the same key (vim-gitgutter's `<leader>hp`, `<leader>hs`, … for example) coexist fine: `<leader>h{motion}` and `<leader>hc` / `hx` / `hn` / `hb` resolve as soon as you type the next key. A mapping you already have for one of these exact keys is never overwritten; pick other keys with the options above.
 
 ### Cursor-highlight plugins (coc.nvim etc.)
 

@@ -54,47 +54,50 @@ With the default mappings:
         <leader>hi{     inside braces (the braces stay dim)
         <leader>hap     a paragraph
 <
-    - In Visual mode, select text and press <leader>h. This replaces any
-      spotlight already on the buffer.
+    - In Visual mode, select text and press <leader>h.
     - In block-wise Visual mode (|CTRL-V|), select a column and press
       <leader>h to light just that rectangle.
-    - When a spotlight is on, <leader>h in Normal mode clears it.
+    - While a spotlight is on, <leader>h adds more regions the same way
+      (|spotlight-regions|).
+    - <leader>hc clears everything.
 
 The operator can be repeated with |.|.
 
 SEVERAL REGIONS                                            *spotlight-regions*
 
-<leader>h replaces whatever is lit with one region. To light more than one
-place at a time, add regions with <leader>H, which works with the same
-motions, text objects and Visual selections:
+When something is already lit, <leader>h adds another region instead of
+replacing it, with the same motions, text objects and Visual selections. So
+you can light several places at once:
 >
     <leader>hip         light this paragraph
-    <leader>H}          ...and also up to the next blank line elsewhere
-    <leader>Hi{         ...and also the inside of these braces
+    <leader>h}          ...and also up to the next blank line elsewhere
+    <leader>hi{         ...and also the inside of these braces
 <
 Everything outside all of them is dimmed. Regions that overlap or touch form
 one lit area, and each one follows your edits. Deleting all of a region's
 text removes that region.
 
-<leader>Hx switches the region under the cursor off: it is dimmed like the
-rest of the buffer but remembered. <leader>Hx on it again switches it back
+<leader>hx switches the region under the cursor off: it is dimmed like the
+rest of the buffer but remembered. <leader>hx on it again switches it back
 on. With nested regions, the innermost one is switched. When every region is
 off, nothing is dimmed.
 
-]H lights only the next region and moves the cursor to it, ]H again moves on
-to the one after it, and stepping past the last region lights all of them
-again. [H goes the other way. Regions are visited in buffer order and the
-ones switched off are skipped. Adding a region or switching one off or on
-lights all of them again.
+<leader>hn lights only the next region and moves the cursor to it, pressing
+it again moves on to the one after it, and stepping past the last region
+lights all of them again. <leader>hb goes back the other way. Regions are
+visited in buffer order and the ones switched off are skipped. Adding a
+region or switching one off or on lights all of them again.
 
-<leader>h (bare) or |:SpotlightClear| removes every region.
+<leader>hc or |:SpotlightClear| removes every region. To start over with a
+single region, use <leader>hc first, or |:Spotlight| with a range.
 
 ==============================================================================
 4. COMMANDS                                               *spotlight-commands*
 
                                                                   *:Spotlight*
 :[range]Spotlight       Spotlight the lines in [range] and dim everything
-                        else. [range] defaults to the current line.
+                        else, replacing any other region. [range] defaults
+                        to the current line.
 >
                             :5,20Spotlight
                             :.,+9Spotlight
@@ -122,14 +125,16 @@ All commands can be followed by |:bar|.
 ==============================================================================
 5. MAPPINGS                                               *spotlight-mappings*
 
-The default keys are <leader>h and <leader>H in Normal and Visual mode, plus
-<leader>Hx, ]H and [H in Normal mode. See |spotlight-configuration| to
-change them and |g:spotlight_no_default_mappings| to turn them all off.
+Everything hangs off one key, <leader>h: followed by a motion (or in Visual
+mode) it lights a region, followed by c, x, n or b it acts on the regions.
+See |spotlight-configuration| to change the keys and
+|g:spotlight_no_default_mappings| to turn them all off.
 
 NORMAL MODE                                              *spotlight-normal*
 
-<leader>h{motion}       Spotlight the text covered by {motion}. Works with
-                        any motion or text object:
+<leader>h{motion}       Spotlight the text covered by {motion}, or add it as
+                        another region when something is already lit. Works
+                        with any motion or text object:
 >
                             <leader>h9j      9 lines below
                             <leader>h5k      5 lines above
@@ -146,24 +151,22 @@ NORMAL MODE                                              *spotlight-normal*
                         stays lit. A character-wise motion (iw, i{, ...)
                         lights exactly the covered characters.
 
-<leader>h               When the buffer already has a spotlight, clear it.
-                        (This is why the operator only starts when nothing is
-                        dimmed: otherwise a second <leader>h would be read as
-                        a motion.)
+<leader>hc              Clear every region.
 
-<leader>H{motion}       Add the text covered by {motion} as another region,
-                        keeping the ones already lit. See |spotlight-regions|.
+<leader>hx              Switch the region under the cursor off or on.
 
-<leader>Hx              Switch the region under the cursor off or on.
-
-]H                      Light only the next region and jump to it; past the
+<leader>hn              Light only the next region and jump to it; past the
                         last one, light all of them again.
 
-[H                      Same as ]H, going backwards.
+<leader>hb              Same as <leader>hn, going back.
+
+                        Because of these, <leader>h cannot be followed by the
+                        motions n ("to the next match") or b ("a word back").
 
 VISUAL MODE                                              *spotlight-visual*
 
-<leader>h               Spotlight the selection, replacing any existing one.
+<leader>h               Spotlight the selection, or add it as another region
+                        when something is already lit.
 
                         Character-wise (|v|): dims everything before the
                         start and after the end, including the parts of the
@@ -181,9 +184,6 @@ VISUAL MODE                                              *spotlight-visual*
 >
                             <C-v>5j6l<leader>h
 <
-<leader>H               Add the selection as another region, keeping the ones
-                        already lit.
-
 Visual mode only; Select mode is left alone so typing over a selection (for
 example a snippet placeholder) never triggers it.
 
@@ -191,24 +191,29 @@ example a snippet placeholder) never triggers it.
 
 These are always defined, whatever the default-mapping settings:
 
-    <Plug>(SpotlightOperator)   Normal mode: operator, or clear when active.
-    <Plug>(SpotlightVisual)     Visual mode: spotlight the selection
-                                (replaces an existing spotlight).
-    <Plug>(SpotlightToggle)     Visual mode: spotlight the selection, or
-                                clear when the buffer already has one. This
-                                was the Visual-mode default before 1.0.
-    <Plug>(SpotlightAddOperator)  Normal mode: operator that adds a region.
-    <Plug>(SpotlightAddVisual)    Visual mode: add the selection as a region.
+    <Plug>(SpotlightAddOperator)  Normal mode: operator that lights a
+                                  region, or adds one. Default <leader>h.
+    <Plug>(SpotlightAddVisual)    Visual mode: same for the selection.
+    <Plug>(SpotlightClear)        Normal mode: clear every region.
     <Plug>(SpotlightToggleRegion) Normal mode: switch the region under the
                                   cursor off or on.
-    <Plug>(SpotlightNext)       Normal mode: focus the next region.
-    <Plug>(SpotlightPrev)       Normal mode: focus the previous region.
+    <Plug>(SpotlightNext)         Normal mode: focus the next region.
+    <Plug>(SpotlightPrev)         Normal mode: focus the previous region.
+
+One region at a time, as in 1.x:
+
+    <Plug>(SpotlightOperator)     Normal mode: operator that replaces the
+                                  spotlight; when one is on, clears it.
+    <Plug>(SpotlightVisual)       Visual mode: replace with the selection.
+    <Plug>(SpotlightToggle)       Visual mode: spotlight the selection, or
+                                  clear when the buffer already has one.
 
 To use your own keys:
 >
     let g:spotlight_no_default_mappings = 1
-    nmap ,s <Plug>(SpotlightOperator)
-    xmap ,s <Plug>(SpotlightVisual)
+    nmap ,s  <Plug>(SpotlightAddOperator)
+    xmap ,s  <Plug>(SpotlightAddVisual)
+    nmap ,sc <Plug>(SpotlightClear)
 <
 Use |:xmap|, not |:vmap|, for the Visual-mode target.
 
@@ -221,25 +226,20 @@ are read when the plugin loads (set them in your vimrc).
                                                   *g:spotlight_mapping*
 g:spotlight_mapping     Default: '<leader>h'
                         Key used for the default Normal and Visual mode
-                        mappings.
+                        mappings. The keys below default to this key
+                        followed by a letter.
 
-                                                  *g:spotlight_add_mapping*
-g:spotlight_add_mapping Default: '<leader>H'
-                        Key that adds a region, in Normal and Visual mode.
-
-                                                  *g:spotlight_toggle_mapping*
-g:spotlight_toggle_mapping
-                        Default: |g:spotlight_add_mapping| followed by x
-                        Key that switches the region under the cursor off
-                        or on.
-
-                         *g:spotlight_next_mapping* *g:spotlight_prev_mapping*
-g:spotlight_next_mapping
-g:spotlight_prev_mapping
-                        Default: ']H' and '[H'
-                        Keys that focus the next and previous region.
-
-                        Set any of these to '' to leave that key unmapped.
+                                                 *g:spotlight_clear_mapping*
+                                                *g:spotlight_toggle_mapping*
+                                                  *g:spotlight_next_mapping*
+                                                  *g:spotlight_prev_mapping*
+g:spotlight_clear_mapping       Default: |g:spotlight_mapping| followed by c
+g:spotlight_toggle_mapping      Default: |g:spotlight_mapping| followed by x
+g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
+g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
+                        Keys that clear every region, switch the region
+                        under the cursor off or on, and focus the next and
+                        previous region. Set one to '' to leave it unmapped.
 
                                              *g:spotlight_no_default_mappings*
 g:spotlight_no_default_mappings
@@ -380,11 +380,12 @@ autoload script is only loaded once you use the plugin.
 >
         :verbose nmap <leader>h
 <
-Clearing with <leader>h is slow ~
-    Another mapping starts with the same keys (for example vim-gitgutter's
-    <leader>hp), so after a bare <leader>h Vim waits 'timeoutlen' to see
-    whether more keys follow. <leader>h{motion} is not affected. Pick a key
-    nothing else starts with via |g:spotlight_mapping|.
+<leader>h followed by n or b does something else ~
+    <leader>hn and <leader>hb focus the next and previous region, so they
+    cannot spotlight "to the next match" or "one word back". Use Visual mode
+    for those, or move the focus keys with |g:spotlight_next_mapping| and
+    |g:spotlight_prev_mapping|.
+
 Highlights from another plugin show through the dim ~
     Raise |g:spotlight_priority|. For highlights that follow the cursor, see
     |g:spotlight_suppress_cursor_events|.

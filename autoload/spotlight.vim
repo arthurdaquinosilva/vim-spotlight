@@ -13,7 +13,7 @@ set cpoptions&vim
 "
 "   regions  list of regions, in the order they were added
 "   focus    0 to light every enabled region, or the id of the one region
-"            lit on its own (]H / [H)
+"            lit on its own (<leader>hn / <leader>hb)
 "   lines    buffer line count when the regions were last updated
 "   next_id  id for the next region
 "
@@ -26,7 +26,7 @@ set cpoptions&vim
 "                              ignored in 'line' mode.
 "   vcols    [left, right]     'block' mode only: inclusive screen columns.
 "                              right == 0 means "to the end of every line".
-"   enabled  0 when switched off with <leader>Hx (kept, but not lit)
+"   enabled  0 when switched off with <leader>hx (kept, but not lit)
 "   anchor   text property id / extmark id that tracks pos across edits
 "
 " Everything outside the union of the lit regions is dimmed. When no region

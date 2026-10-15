@@ -2,24 +2,37 @@ scriptencoding utf-8
 " Default mappings and <Plug> targets.
 
 function! Test_defaults_are_visual_not_select() abort
-    call assert_equal('<Plug>(SpotlightVisual)', maparg('<leader>h', 'x'))
+    call assert_equal('<Plug>(SpotlightAddVisual)', maparg('<leader>h', 'x'))
     call assert_equal('', maparg('<leader>h', 's'))
-    call assert_equal('<Plug>(SpotlightOperator)', maparg('<leader>h', 'n'))
+    call assert_equal('<Plug>(SpotlightAddOperator)', maparg('<leader>h', 'n'))
 endfunction
 
-function! Test_normal_key_clears_active_spotlight() abort
+function! Test_hc_clears_active_spotlight() abort
     call SetLines(['one', 'two', 'three'])
     2Spotlight
-    call Keys('\h')
+    call Keys('\hc')
     call assert_false(exists('b:spotlight'))
     call assert_equal([], SpotlightMatches())
 endfunction
 
-function! Test_visual_replaces_existing_spotlight() abort
+function! Test_visual_adds_to_existing_spotlight() abort
     call SetLines(['one', 'two', 'three'])
     1Spotlight
     call Keys('3GV\h')
+    call assert_equal(['one', '___', 'three'], Screen())
+endfunction
+
+function! Test_one_region_plug_targets_keep_1x_behaviour() abort
+    " <Plug>(SpotlightOperator) / (SpotlightVisual): replace, and a bare key
+    " clears, for people who prefer one region at a time.
+    nmap <buffer> ,s <Plug>(SpotlightOperator)
+    xmap <buffer> ,s <Plug>(SpotlightVisual)
+    call SetLines(['one', 'two', 'three'])
+    1Spotlight
+    call Keys('3GV,s')
     call assert_equal(['___', '___', 'three'], Screen())
+    call Keys(',s')
+    call assert_false(exists('b:spotlight'))
 endfunction
 
 function! Test_plug_toggle_keeps_toggle_behaviour() abort
@@ -34,6 +47,9 @@ endfunction
 function! s:load_plugin_fresh() abort
     silent! nunmap <leader>h
     silent! xunmap <leader>h
+    for l:k in ['c', 'x', 'n', 'b']
+        execute 'silent! nunmap <leader>h' . l:k
+    endfor
     unlet! g:loaded_spotlight
     runtime plugin/spotlight.vim
 endfunction
@@ -54,12 +70,16 @@ function! Test_custom_default_key() abort
     let g:spotlight_mapping = '<leader>s'
     try
         call s:load_plugin_fresh()
-        call assert_equal('<Plug>(SpotlightOperator)', maparg('<leader>s', 'n'))
+        call assert_equal('<Plug>(SpotlightAddOperator)', maparg('<leader>s', 'n'))
+        call assert_equal('<Plug>(SpotlightClear)', maparg('<leader>sc', 'n'))
         call assert_equal('', maparg('<leader>h', 'n'))
     finally
         unlet g:spotlight_mapping
         silent! nunmap <leader>s
         silent! xunmap <leader>s
+        for l:k in ['c', 'x', 'n', 'b']
+            execute 'silent! nunmap <leader>s' . l:k
+        endfor
         call s:load_plugin_fresh()
     endtry
 endfunction
@@ -69,7 +89,7 @@ function! Test_mapped_alongside_longer_mappings_with_same_prefix() abort
     nnoremap <leader>hp :let g:hunk_preview = 1<CR>
     try
         call s:load_plugin_fresh()
-        call assert_equal('<Plug>(SpotlightOperator)', maparg('<leader>h', 'n'))
+        call assert_equal('<Plug>(SpotlightAddOperator)', maparg('<leader>h', 'n'))
         call SetLines(['one', 'two', 'three'])
         call Keys('2G\hj')
         call assert_equal(['___', 'two', 'three'], Screen())

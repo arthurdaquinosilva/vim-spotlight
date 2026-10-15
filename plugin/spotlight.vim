@@ -79,20 +79,28 @@ command! -bar SpotlightPrev call spotlight#focus(-1)
 " xnoremap rather than vnoremap: Select mode must keep typing over the
 " selection (snippets!) instead of firing the mapping.
 
-xnoremap <silent> <expr> <Plug>(SpotlightVisual) spotlight#visual_map()
-xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
-nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
-xnoremap <silent> <expr> <Plug>(SpotlightAddVisual) spotlight#visual_map(1)
+" Add a region (or start the spotlight when nothing is lit): the defaults.
 nnoremap <silent> <expr> <Plug>(SpotlightAddOperator) spotlight#add_operator_map()
+xnoremap <silent> <expr> <Plug>(SpotlightAddVisual) spotlight#visual_map(1)
+nnoremap <silent> <Plug>(SpotlightClear) :<C-u>call spotlight#clear()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
 nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
 nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
+" One region at a time, as in 1.x: the operator clears when a spotlight is
+" on, Visual mode replaces it (or, for SpotlightToggle, clears it).
+nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
+xnoremap <silent> <expr> <Plug>(SpotlightVisual) spotlight#visual_map()
+xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 
 " ── Default key bindings ─────────────────────────────────────────────────────
 " Opt out with: let g:spotlight_no_default_mappings = 1
-" Longer mappings that merely start with the same key (e.g. vim-gitgutter's
-" <leader>hp) are fine: <leader>h{motion} resolves as soon as the motion is
-" typed. Only an existing mapping for the exact key is left alone.
+" Everything hangs off one key (<leader>h): the key plus a motion lights or
+" adds a region, the key plus c / x / n / b clears, switches a region off or
+" on, and focuses the next / previous region. Those letters are not useful
+" as motions here. Longer mappings that merely start with the same key (e.g.
+" vim-gitgutter's <leader>hp) are fine: <leader>h{motion} resolves as soon as
+" the motion is typed. Only an existing mapping for the exact key is left
+" alone.
 
 function! s:map_default(mode, key, plugs) abort
     for l:plug in a:plugs
@@ -108,19 +116,20 @@ endfunction
 
 if !get(g:, 'spotlight_no_default_mappings', 0)
     let s:key = get(g:, 'spotlight_mapping', '<leader>h')
-    let s:add_key = get(g:, 'spotlight_add_mapping', '<leader>H')
-    call s:map_default('x', s:key,
-        \ ['<Plug>(SpotlightVisual)', '<Plug>(SpotlightToggle)'])
-    call s:map_default('n', s:key, ['<Plug>(SpotlightOperator)'])
-    call s:map_default('x', s:add_key, ['<Plug>(SpotlightAddVisual)'])
-    call s:map_default('n', s:add_key, ['<Plug>(SpotlightAddOperator)'])
-    call s:map_default('n', get(g:, 'spotlight_toggle_mapping',
-        \ empty(s:add_key) ? '' : s:add_key . 'x'), ['<Plug>(SpotlightToggleRegion)'])
-    call s:map_default('n', get(g:, 'spotlight_next_mapping', ']H'),
-        \ ['<Plug>(SpotlightNext)'])
-    call s:map_default('n', get(g:, 'spotlight_prev_mapping', '[H'),
-        \ ['<Plug>(SpotlightPrev)'])
-    unlet s:key s:add_key
+    call s:map_default('n', s:key, ['<Plug>(SpotlightAddOperator)',
+        \ '<Plug>(SpotlightOperator)'])
+    call s:map_default('x', s:key, ['<Plug>(SpotlightAddVisual)',
+        \ '<Plug>(SpotlightVisual)', '<Plug>(SpotlightToggle)'])
+    for [s:name, s:letter, s:plug] in [
+        \ ['clear', 'c', 'SpotlightClear'],
+        \ ['toggle', 'x', 'SpotlightToggleRegion'],
+        \ ['next', 'n', 'SpotlightNext'],
+        \ ['prev', 'b', 'SpotlightPrev'],
+        \ ]
+        call s:map_default('n', get(g:, 'spotlight_' . s:name . '_mapping',
+            \ empty(s:key) ? '' : s:key . s:letter), ['<Plug>(' . s:plug . ')'])
+    endfor
+    unlet s:key s:name s:letter s:plug
 endif
 
 let &cpoptions = s:save_cpo

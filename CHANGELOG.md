@@ -5,16 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
-### Added
-
-- **Several regions at once.** `<leader>H{motion}`, Visual `<leader>H` and `:[range]SpotlightAdd` add a region instead of replacing the current one; everything outside all lit regions is dimmed.
-- `<leader>Hx` (`:SpotlightToggleRegion`) switches the region under the cursor off and on.
-- `]H` / `[H` (`:SpotlightNext` / `:SpotlightPrev`) light only the next / previous region and jump to it, cycling back to all regions.
-- Options `g:spotlight_add_mapping`, `g:spotlight_toggle_mapping`, `g:spotlight_next_mapping`, `g:spotlight_prev_mapping`; `<Plug>` targets and `spotlight#add_lines()`.
-
 ### Changed
 
+- **Breaking: `<leader>h` now adds while a spotlight is on.** `<leader>h{motion}` and Visual `<leader>h` light a region when nothing is lit and *add* another region when something is. Clearing moved from a bare `<leader>h` to **`<leader>hc`**. The 1.x behavior (replace, bare key clears) is still available by mapping `<Plug>(SpotlightOperator)` / `<Plug>(SpotlightVisual)`.
 - A region whose text is deleted entirely is dropped (when other regions remain), instead of staying lit on a neighbouring line.
+
+### Added
+
+- **Several regions at once.** Everything outside all lit regions is dimmed; character, line and block regions can share lines. `:[range]SpotlightAdd` adds lines.
+- `<leader>hx` (`:SpotlightToggleRegion`) switches the region under the cursor off and on.
+- `<leader>hn` / `<leader>hb` (`:SpotlightNext` / `:SpotlightPrev`) light only the next / previous region and jump to it, cycling back to all regions.
+- Options `g:spotlight_clear_mapping`, `g:spotlight_toggle_mapping`, `g:spotlight_next_mapping`, `g:spotlight_prev_mapping`; `<Plug>` targets `SpotlightAddOperator`, `SpotlightAddVisual`, `SpotlightClear`, `SpotlightToggleRegion`, `SpotlightNext`, `SpotlightPrev`; `spotlight#add_lines()`.
 
 ## [1.1.0] - 2026-10-15
 
