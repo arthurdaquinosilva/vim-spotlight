@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-15
+
 ### Changed
 
 - **Breaking: `<leader>h` now adds while a spotlight is on.** `<leader>h{motion}` and Visual `<leader>h` light a region when nothing is lit and *add* another region when something is. Clearing moved from a bare `<leader>h` to **`<leader>hc`**. The 1.x behavior (replace, bare key clears) is still available by mapping `<Plug>(SpotlightOperator)` / `<Plug>(SpotlightVisual)`.
@@ -68,7 +70,8 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/7960f6f...v1.0.0
