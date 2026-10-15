@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- **Several regions at once.** `<leader>H{motion}`, Visual `<leader>H` and `:[range]SpotlightAdd` add a region instead of replacing the current one; everything outside all lit regions is dimmed.
+- `<leader>Hx` (`:SpotlightToggleRegion`) switches the region under the cursor off and on.
+- `]H` / `[H` (`:SpotlightNext` / `:SpotlightPrev`) light only the next / previous region and jump to it, cycling back to all regions.
+- Options `g:spotlight_add_mapping`, `g:spotlight_toggle_mapping`, `g:spotlight_next_mapping`, `g:spotlight_prev_mapping`; `<Plug>` targets and `spotlight#add_lines()`.
+
+### Changed
+
+- A region whose text is deleted entirely is dropped (when other regions remain), instead of staying lit on a neighbouring line.
+
 ## [1.1.0] - 2026-10-15
 
 ### Added

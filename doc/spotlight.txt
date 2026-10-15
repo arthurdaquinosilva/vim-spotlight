@@ -23,14 +23,16 @@ CONTENTS                                                  *spotlight-contents*
 1. INTRODUCTION                                       *spotlight-introduction*
 
 Spotlight focuses your attention by dimming everything in the current buffer
-except the region you pick. The region can be:
+except the regions you pick. A region can be:
 
     - A motion or text object (it is an operator, like |d| or |y|)
     - A Visual selection: character-wise, line-wise or block-wise
     - An Ex range
 
-The region follows your edits, is shown in every window on the buffer, and
-is tracked independently per buffer.
+You can light one region or several at once, switch regions off and on, and
+step the focus from one region to the next (|spotlight-regions|). Regions
+follow your edits, are shown in every window on the buffer, and are tracked
+independently per buffer.
 
 ==============================================================================
 2. REQUIREMENTS                                       *spotlight-requirements*
@@ -60,6 +62,33 @@ With the default mappings:
 
 The operator can be repeated with |.|.
 
+SEVERAL REGIONS                                            *spotlight-regions*
+
+<leader>h replaces whatever is lit with one region. To light more than one
+place at a time, add regions with <leader>H, which works with the same
+motions, text objects and Visual selections:
+>
+    <leader>hip         light this paragraph
+    <leader>H}          ...and also up to the next blank line elsewhere
+    <leader>Hi{         ...and also the inside of these braces
+<
+Everything outside all of them is dimmed. Regions that overlap or touch form
+one lit area, and each one follows your edits. Deleting all of a region's
+text removes that region.
+
+<leader>Hx switches the region under the cursor off: it is dimmed like the
+rest of the buffer but remembered. <leader>Hx on it again switches it back
+on. With nested regions, the innermost one is switched. When every region is
+off, nothing is dimmed.
+
+]H lights only the next region and moves the cursor to it, ]H again moves on
+to the one after it, and stepping past the last region lights all of them
+again. [H goes the other way. Regions are visited in buffer order and the
+ones switched off are skipped. Adding a region or switching one off or on
+lights all of them again.
+
+<leader>h (bare) or |:SpotlightClear| removes every region.
+
 ==============================================================================
 4. COMMANDS                                               *spotlight-commands*
 
@@ -73,17 +102,29 @@ The operator can be repeated with |.|.
 <
 :Spotlight!             Clear the spotlight in the current buffer.
 
-                                                             *:SpotlightClear*
-:SpotlightClear         Clear the spotlight in the current buffer.
+                                                               *:SpotlightAdd*
+:[range]SpotlightAdd    Add the lines in [range] as another region, keeping
+                        the ones already lit. See |spotlight-regions|.
 
-Both commands can be followed by |:bar|.
+                                                             *:SpotlightClear*
+:SpotlightClear         Clear the spotlight (every region) in the current
+                        buffer.
+
+                                                      *:SpotlightToggleRegion*
+:SpotlightToggleRegion  Switch the region under the cursor off or on.
+
+                                             *:SpotlightNext* *:SpotlightPrev*
+:SpotlightNext          Light only the next region; past the last one, light
+:SpotlightPrev          all of them again. :SpotlightPrev goes backwards.
+
+All commands can be followed by |:bar|.
 
 ==============================================================================
 5. MAPPINGS                                               *spotlight-mappings*
 
-The default key is <leader>h in Normal and Visual mode. See
-|g:spotlight_mapping| to change it and |g:spotlight_no_default_mappings| to
-turn it off.
+The default keys are <leader>h and <leader>H in Normal and Visual mode, plus
+<leader>Hx, ]H and [H in Normal mode. See |spotlight-configuration| to
+change them and |g:spotlight_no_default_mappings| to turn them all off.
 
 NORMAL MODE                                              *spotlight-normal*
 
@@ -110,6 +151,16 @@ NORMAL MODE                                              *spotlight-normal*
                         dimmed: otherwise a second <leader>h would be read as
                         a motion.)
 
+<leader>H{motion}       Add the text covered by {motion} as another region,
+                        keeping the ones already lit. See |spotlight-regions|.
+
+<leader>Hx              Switch the region under the cursor off or on.
+
+]H                      Light only the next region and jump to it; past the
+                        last one, light all of them again.
+
+[H                      Same as ]H, going backwards.
+
 VISUAL MODE                                              *spotlight-visual*
 
 <leader>h               Spotlight the selection, replacing any existing one.
@@ -130,6 +181,9 @@ VISUAL MODE                                              *spotlight-visual*
 >
                             <C-v>5j6l<leader>h
 <
+<leader>H               Add the selection as another region, keeping the ones
+                        already lit.
+
 Visual mode only; Select mode is left alone so typing over a selection (for
 example a snippet placeholder) never triggers it.
 
@@ -143,6 +197,12 @@ These are always defined, whatever the default-mapping settings:
     <Plug>(SpotlightToggle)     Visual mode: spotlight the selection, or
                                 clear when the buffer already has one. This
                                 was the Visual-mode default before 1.0.
+    <Plug>(SpotlightAddOperator)  Normal mode: operator that adds a region.
+    <Plug>(SpotlightAddVisual)    Visual mode: add the selection as a region.
+    <Plug>(SpotlightToggleRegion) Normal mode: switch the region under the
+                                  cursor off or on.
+    <Plug>(SpotlightNext)       Normal mode: focus the next region.
+    <Plug>(SpotlightPrev)       Normal mode: focus the previous region.
 
 To use your own keys:
 >
@@ -163,7 +223,25 @@ g:spotlight_mapping     Default: '<leader>h'
                         Key used for the default Normal and Visual mode
                         mappings.
 
-                                                  *g:spotlight_no_default_mappings*
+                                                  *g:spotlight_add_mapping*
+g:spotlight_add_mapping Default: '<leader>H'
+                        Key that adds a region, in Normal and Visual mode.
+
+                                                  *g:spotlight_toggle_mapping*
+g:spotlight_toggle_mapping
+                        Default: |g:spotlight_add_mapping| followed by x
+                        Key that switches the region under the cursor off
+                        or on.
+
+                         *g:spotlight_next_mapping* *g:spotlight_prev_mapping*
+g:spotlight_next_mapping
+g:spotlight_prev_mapping
+                        Default: ']H' and '[H'
+                        Keys that focus the next and previous region.
+
+                        Set any of these to '' to leave that key unmapped.
+
+                                             *g:spotlight_no_default_mappings*
 g:spotlight_no_default_mappings
                         Default: 0
                         Set to 1 to define no default mappings. Map your own
@@ -253,13 +331,18 @@ SpotlightDim            The highlight used for dimmed text.
 For use in your own mappings and scripts.
 
 spotlight#lines({first}, {last})                        *spotlight#lines()*
-        Spotlight lines {first} to {last} of the current buffer.
+        Spotlight lines {first} to {last} of the current buffer, replacing
+        any other region.
+
+spotlight#add_lines({first}, {last})                *spotlight#add_lines()*
+        Add lines {first} to {last} as another region.
 
 spotlight#clear()                                       *spotlight#clear()*
         Clear the spotlight in the current buffer.
 
 spotlight#is_active()                               *spotlight#is_active()*
-        Return 1 when the current buffer has a spotlight, 0 otherwise.
+        Return 1 when the current buffer has a spotlight (any region, even
+        if switched off), 0 otherwise.
         Useful in a statusline:
 >
             set statusline+=%{spotlight#is_active()?'[spot]':''}
@@ -270,17 +353,19 @@ spotlight#is_active()                               *spotlight#is_active()*
 9. HOW IT WORKS                                          *spotlight-internals*
 
 |matchadd()| attaches a highlight group to a pattern in one window. The
-plugin builds patterns for everything outside your region - the lines before
-and after it and, depending on the kind of region, the parts of the first and
-last line outside it or the screen columns left and right of a block - and
-gives them the SpotlightDim group. The region itself has no pattern, so it
-keeps its normal colors.
+plugin builds patterns for everything outside the lit regions - the lines
+before, between and after them and, depending on the kind of region, the
+parts of a line outside it or the screen columns left and right of a block -
+and gives them the SpotlightDim group. The regions themselves have no
+pattern, so they keep their normal colors.
 
-The region is stored per buffer in b:spotlight. To follow your edits it is
-anchored with a |text-property| in Vim or an extmark in Neovim, which move
-with the text. After every change the patterns are rebuilt from the anchor
-in every window that shows the buffer. If the anchor disappears (for example
-when |:edit!| reloads the file) the last known lines are kept.
+The regions are stored per buffer in b:spotlight. To follow your edits each
+one is anchored with a |text-property| in Vim or an extmark in Neovim, which
+move with the text. After every change the patterns are rebuilt from the
+anchors in every window that shows the buffer. A region whose anchor
+disappears while the others keep theirs had its text deleted and is dropped;
+if every anchor disappears at once (for example when |:edit!| reloads the
+file) the last known lines are kept.
 
 The plugin does not use marks, |:match|, or any other state of yours. The
 autoload script is only loaded once you use the plugin.

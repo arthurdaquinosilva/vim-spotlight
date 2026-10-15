@@ -8,17 +8,29 @@ set cpoptions&vim
 
 " ── Model ────────────────────────────────────────────────────────────────────
 "
-" A spotlight lives in b:spotlight, so it is per-buffer and disappears with
+" Spotlights live in b:spotlight, so they are per-buffer and disappear with
 " the buffer. Shape:
 "
-"   mode   'char' | 'line' | 'block'
-"   pos    [sl, sc, el, ec]  1-based lines and byte columns; ec is exclusive
-"                            (one past the last lit byte). Columns are ignored
-"                            in 'line' mode.
-"   vcols  [left, right]     'block' mode only: inclusive screen columns.
-"                            right == 0 means "to the end of every line".
-"   lines  buffer line count when pos was last updated
-"   anchor id of the text property / extmark that tracks pos across edits
+"   regions  list of regions, in the order they were added
+"   focus    0 to light every enabled region, or the id of the one region
+"            lit on its own (]H / [H)
+"   lines    buffer line count when the regions were last updated
+"   next_id  id for the next region
+"
+" Each region:
+"
+"   id       stable id; also the text property id in Vim
+"   mode     'char' | 'line' | 'block'
+"   pos      [sl, sc, el, ec]  1-based lines and byte columns; ec is exclusive
+"                              (one past the last lit byte). Columns are
+"                              ignored in 'line' mode.
+"   vcols    [left, right]     'block' mode only: inclusive screen columns.
+"                              right == 0 means "to the end of every line".
+"   enabled  0 when switched off with <leader>Hx (kept, but not lit)
+"   anchor   text property id / extmark id that tracks pos across edits
+"
+" Everything outside the union of the lit regions is dimmed. When no region
+" is lit (all switched off) nothing is dimmed, but the regions are kept.
 "
 " Matches are window-local, so every window showing the buffer gets its own
 " copy. Windows that carry our matches are flagged with w:spotlight so the
@@ -80,24 +92,23 @@ function! s:vcol_end(lnum, col, off) abort
     return virtcol([a:lnum, a:col]) + a:off
 endfunction
 
-" ── Position anchors (track the region while the buffer is edited) ───────────
+" ── Position anchors (track the regions while the buffer is edited) ──────────
 "
-" Vim: one multi-line text property spanning the region. Text properties move
-" with inserted/deleted text, survive deletion of the first or last line
+" Vim: one multi-line text property per region, spanning it. Text properties
+" move with inserted/deleted text, survive deletion of the first or last line
 " (the remaining segments simply become the new edge) and are restored by
-" undo. Neovim: one extmark with an end position. Without either, the region
-" stays at fixed coordinates.
+" undo. Neovim: one extmark with an end position per region. Without either,
+" the regions stay at fixed coordinates.
 
-function! s:anchor_set(bufnr, mode, pos) abort
-    call s:anchor_del(a:bufnr)
-    let [l:sl, l:sc, l:el, l:ec] = a:pos
+function! s:anchor_set(bufnr, region) abort
+    let [l:sl, l:sc, l:el, l:ec] = a:region.pos
     if s:has_nvim
         " Gravity mirrors Vim's start_incl/end_incl: typing at either edge of a
         " char-wise region extends it, while for line/block regions a line
         " opened right above the first line stays outside.
         let l:opts = {
             \ 'end_col': l:ec - 1,
-            \ 'right_gravity': a:mode ==# 'char' ? v:false : v:true,
+            \ 'right_gravity': a:region.mode ==# 'char' ? v:false : v:true,
             \ 'end_right_gravity': v:true,
             \ }
         let l:opts[s:end_row_key] = l:el - 1
@@ -113,16 +124,31 @@ function! s:anchor_set(bufnr, mode, pos) abort
         endif
         call prop_add(l:sl, l:sc, {
             \ 'type': s:prop_type,
+            \ 'id': a:region.id,
             \ 'bufnr': a:bufnr,
             \ 'end_lnum': l:el,
             \ 'end_col': l:ec,
             \ })
-        return 1
+        return a:region.id
     endif
     return 0
 endfunction
 
-function! s:anchor_del(bufnr) abort
+" Remove one region's anchor.
+function! s:anchor_del(bufnr, region) abort
+    if !get(a:region, 'anchor', 0)
+        return
+    endif
+    if s:has_nvim
+        call nvim_buf_del_extmark(a:bufnr, s:ns, a:region.anchor)
+    elseif s:has_textprop && !empty(prop_type_get(s:prop_type))
+        call prop_remove({'type': s:prop_type, 'id': a:region.anchor,
+            \ 'both': 1, 'bufnr': a:bufnr, 'all': 1}, 1, s:line_count(a:bufnr))
+    endif
+endfunction
+
+" Remove every anchor in the buffer.
+function! s:anchor_clear(bufnr) abort
     if s:has_nvim
         call nvim_buf_clear_namespace(a:bufnr, s:ns, 0, -1)
     elseif s:has_textprop && !empty(prop_type_get(s:prop_type))
@@ -131,14 +157,15 @@ function! s:anchor_del(bufnr) abort
     endif
 endfunction
 
-" Returns the anchored [sl, sc, el, ec], or [] when the anchor is gone (for
-" example after :edit! reloaded the file).
-function! s:anchor_get(bufnr, state) abort
-    if !get(a:state, 'anchor', 0)
+" Returns the anchored [sl, sc, el, ec] of {region}, or [] when the anchor is
+" gone (for example after :edit! reloaded the file). {delta} is the change in
+" the buffer's line count since the last refresh.
+function! s:anchor_get(bufnr, region, delta) abort
+    if !get(a:region, 'anchor', 0)
         return []
     endif
     if s:has_nvim
-        let l:m = nvim_buf_get_extmark_by_id(a:bufnr, s:ns, a:state.anchor,
+        let l:m = nvim_buf_get_extmark_by_id(a:bufnr, s:ns, a:region.anchor,
             \ {'details': v:true})
         if empty(l:m) || get(l:m[2], 'invalid', v:false)
             return []
@@ -162,12 +189,12 @@ function! s:anchor_get(bufnr, state) abort
     " Fast path (this runs on every keystroke in Insert mode): an edit usually
     " leaves each edge where it was, or shifts it by the change in line count.
     " Only when neither guess holds is the buffer searched.
-    let [l:osl, l:oel] = [a:state.pos[0], a:state.pos[2]]
-    let l:delta = s:line_count(a:bufnr) - get(a:state, 'lines', 0)
+    let l:id = a:region.anchor
+    let [l:osl, l:oel] = [a:region.pos[0], a:region.pos[2]]
 
-    let l:first = s:segment_at(a:bufnr, [l:osl, l:osl + l:delta], 'start')
+    let l:first = s:segment_at(a:bufnr, l:id, [l:osl, l:osl + a:delta], 'start')
     if empty(l:first)
-        let l:first = s:find_start(a:bufnr)
+        let l:first = s:find_start(a:bufnr, l:id)
         if empty(l:first)
             return []
         endif
@@ -175,10 +202,10 @@ function! s:anchor_get(bufnr, state) abort
     let l:sl = l:first.lnum
     let l:sc = l:first.start ? l:first.col : 1
 
-    let l:last = s:segment_at(a:bufnr,
-        \ filter([l:oel, l:oel + l:delta], 'v:val >= l:sl'), 'end')
+    let l:last = s:segment_at(a:bufnr, l:id,
+        \ filter([l:oel, l:oel + a:delta], 'v:val >= l:sl'), 'end')
     if empty(l:last)
-        let l:last = s:scan_to_end(a:bufnr, l:sl)
+        let l:last = s:scan_to_end(a:bufnr, l:id, l:sl)
         if empty(l:last)
             return []
         endif
@@ -187,16 +214,20 @@ function! s:anchor_get(bufnr, state) abort
     return [l:sl, l:sc, l:last.lnum, l:ec]
 endfunction
 
-" Our property's segment on the first of {lnums} where it carries {flag}
+function! s:is_ours(seg, id) abort
+    return get(a:seg, 'type', '') ==# s:prop_type && get(a:seg, 'id', 0) == a:id
+endfunction
+
+" Property {id}'s segment on the first of {lnums} where it carries {flag}
 " ('start' or 'end'), with 'lnum' added; {} when there is none.
-function! s:segment_at(bufnr, lnums, flag) abort
+function! s:segment_at(bufnr, id, lnums, flag) abort
     let l:total = s:line_count(a:bufnr)
     for l:lnum in a:lnums
         if l:lnum < 1 || l:lnum > l:total
             continue
         endif
         for l:seg in prop_list(l:lnum, {'bufnr': a:bufnr})
-            if get(l:seg, 'type', '') ==# s:prop_type && l:seg[a:flag]
+            if s:is_ours(l:seg, a:id) && l:seg[a:flag]
                 return extend(l:seg, {'lnum': l:lnum})
             endif
         endfor
@@ -204,15 +235,15 @@ function! s:segment_at(bufnr, lnums, flag) abort
     return {}
 endfunction
 
-" Slow path: the first segment of our property in the buffer.
-function! s:find_start(bufnr) abort
+" Slow path: the first segment of property {id} in the buffer.
+function! s:find_start(bufnr, id) abort
     if s:has_prop_find
-        return prop_find({'type': s:prop_type, 'bufnr': a:bufnr,
-            \ 'lnum': 1, 'col': 1}, 'f')
+        return prop_find({'type': s:prop_type, 'id': a:id, 'both': 1,
+            \ 'bufnr': a:bufnr, 'lnum': 1, 'col': 1}, 'f')
     endif
     for l:lnum in range(1, s:line_count(a:bufnr))
         for l:seg in prop_list(l:lnum, {'bufnr': a:bufnr})
-            if get(l:seg, 'type', '') ==# s:prop_type
+            if s:is_ours(l:seg, a:id)
                 return extend(l:seg, {'lnum': l:lnum})
             endif
         endfor
@@ -220,11 +251,11 @@ function! s:find_start(bufnr) abort
     return {}
 endfunction
 
-" Slow path: walk from {from} to the segment that ends the property.
-function! s:scan_to_end(bufnr, from) abort
+" Slow path: walk from {from} to the segment that ends property {id}.
+function! s:scan_to_end(bufnr, id, from) abort
     if s:has_prop_range
         let l:segs = prop_list(a:from, {'bufnr': a:bufnr, 'end_lnum': -1,
-            \ 'types': [s:prop_type]})
+            \ 'types': [s:prop_type], 'ids': [a:id]})
         return empty(l:segs) ? {} : l:segs[-1]
     endif
     let l:last = {}
@@ -232,7 +263,7 @@ function! s:scan_to_end(bufnr, from) abort
     let l:lnum = a:from
     while l:lnum <= l:total
         let l:segs = filter(prop_list(l:lnum, {'bufnr': a:bufnr}),
-            \ 'get(v:val, "type", "") ==# s:prop_type')
+            \ 's:is_ours(v:val, a:id)')
         if empty(l:segs)
             break
         endif
@@ -246,35 +277,104 @@ function! s:scan_to_end(bufnr, from) abort
 endfunction
 
 " ── Patterns ─────────────────────────────────────────────────────────────────
+"
+" Every lit region is broken into pieces that each cover a range of lines,
+" either whole or within one column interval: a char-wise region gives its
+" first line from the start column, its middle lines whole and its last line
+" up to the end column; a block gives its lines between two screen columns.
+" The lines are then cut into bands where the same pieces apply. A band with
+" a whole-line piece stays lit, a band with no piece is dimmed entirely, and
+" in any other band a character is dimmed when it is in none of the column
+" intervals (negative lookaheads, so byte and screen columns can be mixed).
+
+" The regions lit right now: the focused one, or every enabled one.
+function! s:lit_regions(state) abort
+    let l:focus = get(a:state, 'focus', 0)
+    return filter(copy(a:state.regions),
+        \ l:focus ? 'v:val.id == l:focus' : 'v:val.enabled')
+endfunction
+
+" Zero-width condition for byte columns [from, to) (to == 0: to end of line).
+function! s:col_atom(from, to) abort
+    return (a:from > 1 ? '\%>' . (a:from - 1) . 'c' : '')
+        \ . (a:to > 0 ? '\%<' . a:to . 'c' : '')
+endfunction
+
+" Pieces of one region: [first line, last line, column atom], where the atom
+" is '' for whole lines or a zero-width condition on the column.
+function! s:pieces(region) abort
+    let [l:sl, l:sc, l:el, l:ec] = a:region.pos
+    if a:region.mode ==# 'line'
+        return [[l:sl, l:el, '']]
+    endif
+    if a:region.mode ==# 'block'
+        let [l:left, l:right] = a:region.vcols
+        let l:atom = (l:left > 1 ? '\%>' . (l:left - 1) . 'v' : '')
+            \ . (l:right > 0 ? '\%<' . (l:right + 1) . 'v' : '')
+        return [[l:sl, l:el, l:atom]]
+    endif
+    if l:sl == l:el
+        return l:ec > l:sc ? [[l:sl, l:sl, s:col_atom(l:sc, l:ec)]] : []
+    endif
+    let l:pieces = [[l:sl, l:sl, s:col_atom(l:sc, 0)]]
+    if l:el > l:sl + 1
+        call add(l:pieces, [l:sl + 1, l:el - 1, ''])
+    endif
+    if l:ec > 1
+        call add(l:pieces, [l:el, l:el, s:col_atom(1, l:ec)])
+    endif
+    return l:pieces
+endfunction
 
 function! s:patterns(state) abort
-    let [l:sl, l:sc, l:el, l:ec] = a:state.pos
+    let l:pieces = []
+    for l:region in s:lit_regions(a:state)
+        call extend(l:pieces, s:pieces(l:region))
+    endfor
+    if empty(l:pieces)
+        return []
+    endif
+
+    " Band edges: every line where a piece starts or ends.
+    let l:edges = {}
+    for [l:first, l:last, l:atom] in l:pieces
+        let l:edges[l:first] = 1
+        let l:edges[l:last + 1] = 1
+    endfor
+    let l:cuts = sort(map(keys(l:edges), 'str2nr(v:val)'), 'n')
+
     let l:pats = []
-
-    if l:sl > 1
-        call add(l:pats, '\%<' . l:sl . 'l.*')
+    if l:cuts[0] > 1
+        call add(l:pats, '\%<' . l:cuts[0] . 'l.*')
     endif
-    " Added even on the last line: if lines are appended from another window
-    " or by a plugin, they are dimmed before the next refresh runs.
-    call add(l:pats, '\%>' . l:el . 'l.*')
+    " Added even past the last line: if lines are appended from another
+    " window or by a plugin, they are dimmed before the next refresh runs.
+    call add(l:pats, '\%>' . (l:cuts[-1] - 1) . 'l.*')
 
-    if a:state.mode ==# 'block'
-        " Dim the screen columns outside [left, right] on every line in the
-        " band; \%v is used (not \%c) so tabs and wide characters line up.
-        let [l:left, l:right] = a:state.vcols
-        let l:band = '\%>' . (l:sl - 1) . 'l\%<' . (l:el + 1) . 'l'
-        if l:left > 1
-            call add(l:pats, l:band . '\%<' . l:left . 'v.')
+    for l:i in range(len(l:cuts) - 1)
+        let [l:first, l:last] = [l:cuts[l:i], l:cuts[l:i + 1] - 1]
+        let l:atoms = []
+        let l:whole = 0
+        for [l:pfirst, l:plast, l:atom] in l:pieces
+            if l:pfirst <= l:first && l:last <= l:plast
+                if empty(l:atom)
+                    let l:whole = 1
+                    break
+                endif
+                call add(l:atoms, l:atom)
+            endif
+        endfor
+        if l:whole
+            continue
         endif
-        if l:right > 0
-            call add(l:pats, l:band . '\%>' . l:right . 'v.')
+        let l:band = '\%>' . (l:first - 1) . 'l\%<' . (l:last + 1) . 'l'
+        if empty(l:atoms)
+            call add(l:pats, l:band . '.*')
+        else
+            call add(l:pats, l:band . join(map(uniq(sort(l:atoms)),
+                \ '"\\%(" . v:val . "\\)\\@!"'), '') . '.')
         endif
-    elseif a:state.mode ==# 'char'
-        if l:sc > 1
-            call add(l:pats, '\%' . l:sl . 'l\%<' . l:sc . 'c.')
-        endif
-        call add(l:pats, '\%' . l:el . 'l\%>' . (l:ec - 1) . 'c.')
-    endif
+    endfor
     return l:pats
 endfunction
 
@@ -292,12 +392,13 @@ endfunction
 function! s:render_window(winid) abort
     call s:clear_window(a:winid)
     let l:state = getbufvar(winbufnr(a:winid), 'spotlight', {})
-    if empty(l:state)
+    let l:pats = empty(l:state) ? [] : s:patterns(l:state)
+    if empty(l:pats)
         call setwinvar(a:winid, 'spotlight', 0)
         return
     endif
     let l:prio = s:priority()
-    for l:pat in s:patterns(l:state)
+    for l:pat in l:pats
         call matchadd('SpotlightDim', l:pat, l:prio, -1, {'window': a:winid})
     endfor
     call setwinvar(a:winid, 'spotlight', 1)
@@ -309,6 +410,12 @@ function! s:render_buffer(bufnr) abort
     endfor
     call s:update_suppression()
     call s:update_search_highlight()
+endfunction
+
+" True when the current buffer has a region lit right now.
+function! s:is_lit() abort
+    let l:state = get(b:, 'spotlight', {})
+    return !empty(l:state) && !empty(s:lit_regions(l:state))
 endfunction
 
 " ── Optional cursor-event suppression ────────────────────────────────────────
@@ -360,7 +467,7 @@ function! s:stop_sweep() abort
 endfunction
 
 function! s:on_sweep(timer) abort
-    if s:suppressing && !empty(get(b:, 'spotlight', {}))
+    if s:suppressing && s:is_lit()
         call s:hide_cursor_highlights()
     else
         call s:stop_sweep()
@@ -381,8 +488,7 @@ function! s:restore_cursor_highlights() abort
 endfunction
 
 function! s:update_suppression() abort
-    let l:want = get(g:, 'spotlight_suppress_cursor_events', 0)
-        \ && !empty(get(b:, 'spotlight', {}))
+    let l:want = get(g:, 'spotlight_suppress_cursor_events', 0) && s:is_lit()
     if l:want
         call s:hide_cursor_highlights()
     endif
@@ -413,8 +519,7 @@ endfunction
 " unless the user turned it back on meanwhile.
 
 function! s:update_search_highlight() abort
-    let l:want = get(g:, 'spotlight_hide_search', 0)
-        \ && !empty(get(b:, 'spotlight', {}))
+    let l:want = get(g:, 'spotlight_hide_search', 0) && s:is_lit()
     if l:want && !s:hls_hidden
         let s:hls_hidden = 1
         let s:hls_saved = &hlsearch
@@ -427,9 +532,14 @@ function! s:update_search_highlight() abort
     endif
 endfunction
 
-" ── Activation ───────────────────────────────────────────────────────────────
+" ── Regions ──────────────────────────────────────────────────────────────────
 
-function! s:activate(mode, pos, vcols) abort
+augroup spotlight_buffer
+    autocmd!
+augroup END
+
+" Add a region to the current buffer, or with {replace} make it the only one.
+function! s:activate(mode, pos, vcols, replace) abort
     let [l:sl, l:sc, l:el, l:ec] = a:pos
     if l:sl < 1 || l:el < l:sl
         return
@@ -440,15 +550,24 @@ function! s:activate(mode, pos, vcols) abort
         let l:sc = 1
         let l:ec = len(getline(l:el)) + 1
     endif
-    let l:pos = [l:sl, l:sc, l:el, l:ec]
 
-    let b:spotlight = {
+    if a:replace || !exists('b:spotlight')
+        call s:anchor_clear(l:bufnr)
+        let b:spotlight = {'regions': [], 'focus': 0, 'next_id': 1}
+    endif
+    let l:region = {
+        \ 'id': b:spotlight.next_id,
         \ 'mode': a:mode,
-        \ 'pos': l:pos,
+        \ 'pos': [l:sl, l:sc, l:el, l:ec],
         \ 'vcols': a:vcols,
-        \ 'lines': line('$'),
-        \ 'anchor': s:anchor_set(l:bufnr, a:mode, l:pos),
+        \ 'enabled': 1,
         \ }
+    let l:region.anchor = s:anchor_set(l:bufnr, l:region)
+    let b:spotlight.next_id += 1
+    let b:spotlight.lines = line('$')
+    " A new region is meant to be seen: show everything again.
+    let b:spotlight.focus = 0
+    call add(b:spotlight.regions, l:region)
 
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
     let l:events = 'TextChanged,TextChangedI'
@@ -459,35 +578,24 @@ function! s:activate(mode, pos, vcols) abort
     call s:render_buffer(l:bufnr)
 endfunction
 
-augroup spotlight_buffer
-    autocmd!
-augroup END
-
-" ── Public API ───────────────────────────────────────────────────────────────
-
-function! spotlight#is_active() abort
-    return !empty(get(b:, 'spotlight', {}))
+function! s:add_lines(line1, line2, replace) abort
+    call s:activate('line', [a:line1, 1, a:line2, 1], [], a:replace)
 endfunction
 
-" Spotlight lines {line1}..{line2}.
-function! spotlight#lines(line1, line2) abort
-    call s:activate('line', [a:line1, 1, a:line2, 1], [])
-endfunction
-
-" Spotlight a character-wise region; {ec} is the inclusive byte column of the
-" last character's first byte, the way '> and '] report it.
-function! spotlight#chars(sl, sc, el, ec) abort
+" {ec} is the inclusive byte column of the last character's first byte, the
+" way '> and '] report it.
+function! s:add_chars(sl, sc, el, ec, replace) abort
     let l:ecx = a:ec + max([1, s:char_len(a:el, a:ec)])
     let l:ecx = min([l:ecx, len(getline(a:el)) + 1])
     if a:sl == a:el && l:ecx <= a:sc
         return
     endif
-    call s:activate('char', [a:sl, a:sc, a:el, l:ecx], [])
+    call s:activate('char', [a:sl, a:sc, a:el, l:ecx], [], a:replace)
 endfunction
 
-" Spotlight a block from two corner positions (as returned by getpos()).
-" {to_eol} is true when the block was extended with '$'.
-function! spotlight#block(p1, p2, to_eol) abort
+" A block from two corner positions (as returned by getpos()); {to_eol} is
+" true when the block was extended with '$'.
+function! s:add_block(p1, p2, to_eol, replace) abort
     let [l:l1, l:c1, l:o1] = a:p1[1:3]
     let [l:l2, l:c2, l:o2] = a:p2[1:3]
     let l:left = min([s:vcol_start(l:l1, l:c1, l:o1),
@@ -495,18 +603,17 @@ function! spotlight#block(p1, p2, to_eol) abort
     let l:right = a:to_eol ? 0 : max([s:vcol_end(l:l1, l:c1, l:o1),
         \ s:vcol_end(l:l2, l:c2, l:o2)])
     call s:activate('block', [min([l:l1, l:l2]), 1, max([l:l1, l:l2]), 1],
-        \ [l:left, l:right])
+        \ [l:left, l:right], a:replace)
 endfunction
 
-" Called (through a mapping) right after leaving Visual mode.
-function! spotlight#visual(to_eol) abort
+function! s:from_visual(to_eol, replace) abort
     let l:mode = visualmode()
     let l:p1 = getpos("'<")
     let l:p2 = getpos("'>")
     if l:mode ==# 'V'
-        call spotlight#lines(l:p1[1], l:p2[1])
+        call s:add_lines(l:p1[1], l:p2[1], a:replace)
     elseif l:mode ==# "\<C-v>"
-        call spotlight#block(l:p1, l:p2, a:to_eol)
+        call s:add_block(l:p1, l:p2, a:to_eol, a:replace)
     elseif &selection ==# 'exclusive'
         " '> is the first excluded character; step back to the last lit one.
         let l:ec = l:p2[2] - 1
@@ -515,18 +622,98 @@ function! spotlight#visual(to_eol) abort
             let l:el -= 1
             let l:ec = max([1, len(getline(l:el))])
         endif
-        call spotlight#chars(l:p1[1], l:p1[2], l:el, max([1, l:ec]))
+        call s:add_chars(l:p1[1], l:p1[2], l:el, max([1, l:ec]), a:replace)
     else
-        call spotlight#chars(l:p1[1], l:p1[2], l:p2[1], l:p2[2])
+        call s:add_chars(l:p1[1], l:p1[2], l:p2[1], l:p2[2], a:replace)
     endif
+endfunction
+
+function! s:from_operator(type, replace) abort
+    let l:p1 = getpos("'[")
+    let l:p2 = getpos("']")
+    if a:type ==# 'line'
+        call s:add_lines(l:p1[1], l:p2[1], a:replace)
+    elseif a:type ==# 'block'
+        call s:add_block(l:p1, l:p2, 0, a:replace)
+    else
+        " Exact bounds so the delimiters of i{ / i( / it stay dimmed.
+        call s:add_chars(l:p1[1], l:p1[2], l:p2[1], l:p2[2], a:replace)
+    endif
+endfunction
+
+" True when the cursor position {pos} ([lnum, col]) is inside {region}.
+function! s:contains(region, lnum, col) abort
+    let [l:sl, l:sc, l:el, l:ec] = a:region.pos
+    if a:lnum < l:sl || a:lnum > l:el
+        return 0
+    endif
+    if a:region.mode ==# 'line'
+        return 1
+    endif
+    if a:region.mode ==# 'block'
+        let [l:left, l:right] = a:region.vcols
+        let l:vcol = virtcol([a:lnum, a:col])
+        return l:vcol >= l:left && (l:right == 0 || l:vcol <= l:right)
+    endif
+    return (a:lnum > l:sl || a:col >= l:sc) && (a:lnum < l:el || a:col < l:ec)
+endfunction
+
+" Number of lines a region spans, to pick the innermost of nested regions.
+function! s:size(region) abort
+    return (a:region.pos[2] - a:region.pos[0]) * 100000
+        \ + (a:region.pos[3] - a:region.pos[1])
+endfunction
+
+" Regions in buffer order (by start line, then column).
+function! s:by_position(a, b) abort
+    let [l:a, l:b] = [a:a.pos, a:b.pos]
+    return l:a[0] != l:b[0] ? l:a[0] - l:b[0] : l:a[1] - l:b[1]
+endfunction
+
+function! s:message(text) abort
+    echohl WarningMsg
+    echo 'spotlight: ' . a:text
+    echohl None
+endfunction
+
+" ── Public API ───────────────────────────────────────────────────────────────
+
+" True when the current buffer has any spotlight region (lit or switched off).
+function! spotlight#is_active() abort
+    return !empty(get(get(b:, 'spotlight', {}), 'regions', []))
+endfunction
+
+" Spotlight lines {line1}..{line2}, replacing any other region.
+function! spotlight#lines(line1, line2) abort
+    call s:add_lines(a:line1, a:line2, 1)
+endfunction
+
+" Add lines {line1}..{line2} as another region.
+function! spotlight#add_lines(line1, line2) abort
+    call s:add_lines(a:line1, a:line2, 0)
+endfunction
+
+" Kept for compatibility: a character-wise or block region, replacing others.
+function! spotlight#chars(sl, sc, el, ec) abort
+    call s:add_chars(a:sl, a:sc, a:el, a:ec, 1)
+endfunction
+
+function! spotlight#block(p1, p2, to_eol) abort
+    call s:add_block(a:p1, a:p2, a:to_eol, 1)
+endfunction
+
+" Called (through a mapping) right after leaving Visual mode.
+function! spotlight#visual(to_eol, ...) abort
+    call s:from_visual(a:to_eol, a:0 ? !a:1 : 1)
 endfunction
 
 " <expr> helpers for the Visual-mode mappings. They run while Visual mode is
 " still active, which is the only time a trailing '$' (curswant == MAXCOL)
 " can be detected.
-function! spotlight#visual_map() abort
+function! spotlight#visual_map(...) abort
     let l:to_eol = getcurpos()[4] >= s:maxcol ? 1 : 0
-    return ":\<C-u>call spotlight#visual(" . l:to_eol . ")\<CR>"
+    let l:add = a:0 ? a:1 : 0
+    return ":\<C-u>call spotlight#visual(" . l:to_eol . ', ' . l:add . ")\<CR>"
 endfunction
 
 function! spotlight#visual_toggle_map() abort
@@ -536,18 +723,13 @@ function! spotlight#visual_toggle_map() abort
     return spotlight#visual_map()
 endfunction
 
-" 'operatorfunc' target.
+" 'operatorfunc' targets: replace, or add a region.
 function! spotlight#operator(type) abort
-    let l:p1 = getpos("'[")
-    let l:p2 = getpos("']")
-    if a:type ==# 'line'
-        call spotlight#lines(l:p1[1], l:p2[1])
-    elseif a:type ==# 'block'
-        call spotlight#block(l:p1, l:p2, 0)
-    else
-        " Exact bounds so the delimiters of i{ / i( / it stay dimmed.
-        call spotlight#chars(l:p1[1], l:p1[2], l:p2[1], l:p2[2])
-    endif
+    call s:from_operator(a:type, 1)
+endfunction
+
+function! spotlight#add_operator(type) abort
+    call s:from_operator(a:type, 0)
 endfunction
 
 " Normal-mode entry point: clear when a spotlight is active, otherwise start
@@ -561,6 +743,11 @@ function! spotlight#operator_map() abort
     return 'g@'
 endfunction
 
+function! spotlight#add_operator_map() abort
+    let &operatorfunc = 'spotlight#add_operator'
+    return 'g@'
+endfunction
+
 " :[range]Spotlight[!]
 function! spotlight#command(bang, line1, line2) abort
     if a:bang
@@ -570,35 +757,102 @@ function! spotlight#command(bang, line1, line2) abort
     endif
 endfunction
 
+" Switch the region under the cursor off (kept, but dimmed) or back on. With
+" nested regions the innermost one is switched. Also leaves focus mode.
+function! spotlight#toggle_region() abort
+    let l:state = get(b:, 'spotlight', {})
+    let l:here = filter(copy(get(l:state, 'regions', [])),
+        \ 's:contains(v:val, line("."), col("."))')
+    if empty(l:here)
+        call s:message('no region under the cursor')
+        return
+    endif
+    let l:region = sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
+    let l:region.enabled = !l:region.enabled
+    let l:state.focus = 0
+    call s:render_buffer(bufnr('%'))
+endfunction
+
+" Light only the next ({step} = 1) or previous ({step} = -1) enabled region,
+" moving the cursor to it. Stepping past the last (or first) region lights
+" all of them again.
+function! spotlight#focus(step) abort
+    let l:state = get(b:, 'spotlight', {})
+    let l:regions = sort(filter(copy(get(l:state, 'regions', [])),
+        \ 'v:val.enabled'), function('s:by_position'))
+    if empty(l:regions)
+        call s:message('no regions to focus')
+        return
+    endif
+    let l:ids = map(copy(l:regions), 'v:val.id')
+    " Position -1 stands for "all regions", before the first and after the last.
+    let l:at = index(l:ids, l:state.focus)
+    let l:next = l:at + a:step
+    if l:at == -1 && a:step < 0
+        let l:next = len(l:ids) - 1
+    endif
+    if l:next < 0 || l:next >= len(l:ids)
+        let l:state.focus = 0
+    else
+        let l:state.focus = l:ids[l:next]
+        normal! m'
+        call cursor(l:regions[l:next].pos[0], l:regions[l:next].pos[1])
+    endif
+    call s:render_buffer(bufnr('%'))
+endfunction
+
 function! spotlight#clear() abort
     let l:bufnr = bufnr('%')
-    call s:anchor_del(l:bufnr)
+    call s:anchor_clear(l:bufnr)
     silent! unlet b:spotlight
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
     call s:render_buffer(l:bufnr)
 endfunction
 
-" Re-read the anchor after an edit and redraw every window on {bufnr}.
+" Re-read the anchors after an edit and redraw every window on {bufnr}.
+"
+" A region whose anchor is gone while others still have theirs had all of its
+" text deleted, so it is dropped. When every anchor is gone at once the
+" buffer was reloaded or replaced (:edit!, :%!fmt): the regions keep their
+" old coordinates, clamped to the buffer, and are anchored again.
 function! spotlight#refresh(...) abort
     let l:bufnr = a:0 ? a:1 : bufnr('%')
     let l:state = getbufvar(l:bufnr, 'spotlight', {})
     if empty(l:state)
         return
     endif
-    let l:pos = s:anchor_get(l:bufnr, l:state)
     let l:last = s:line_count(l:bufnr)
-    if empty(l:pos)
-        " Anchor lost (e.g. :edit!): keep the old coordinates, clamped to the
-        " buffer, and re-anchor them.
-        let [l:sl, l:sc, l:el, l:ec] = l:state.pos
-        let l:el = min([max([l:el, 1]), l:last])
-        let l:sl = min([max([l:sl, 1]), l:el])
-        let l:pos = [l:sl, l:sc, l:el, l:ec]
-        if get(l:state, 'anchor', 0) && bufnr('%') == l:bufnr
-            let l:state.anchor = s:anchor_set(l:bufnr, l:state.mode, l:pos)
+    let l:delta = l:last - get(l:state, 'lines', l:last)
+    let l:found = map(copy(l:state.regions),
+        \ 's:anchor_get(l:bufnr, v:val, l:delta)')
+    let l:reloaded = empty(filter(copy(l:found), '!empty(v:val)'))
+
+    let l:kept = []
+    for l:i in range(len(l:state.regions))
+        let l:region = l:state.regions[l:i]
+        let l:pos = l:found[l:i]
+        if empty(l:pos) && !l:reloaded
+            call s:anchor_del(l:bufnr, l:region)
+            if l:state.focus == l:region.id
+                let l:state.focus = 0
+            endif
+            continue
         endif
-    endif
-    let l:state.pos = l:pos
+        if empty(l:pos)
+            let [l:sl, l:sc, l:el, l:ec] = l:region.pos
+            let l:el = min([max([l:el, 1]), l:last])
+            let l:sl = min([max([l:sl, 1]), l:el])
+            let l:pos = [l:sl, l:sc, l:el, l:ec]
+            if get(l:region, 'anchor', 0) && bufnr('%') == l:bufnr
+                call s:anchor_del(l:bufnr, l:region)
+                let l:region.pos = l:pos
+                let l:region.anchor = s:anchor_set(l:bufnr, l:region)
+            endif
+        endif
+        let l:region.pos = l:pos
+        call add(l:kept, l:region)
+    endfor
+    let l:state.regions = l:kept
     let l:state.lines = l:last
     call s:render_buffer(l:bufnr)
 endfunction

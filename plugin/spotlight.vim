@@ -69,7 +69,11 @@ augroup END
 
 command! -bar -bang -range Spotlight
     \ call spotlight#command(<bang>0, <line1>, <line2>)
+command! -bar -range SpotlightAdd call spotlight#add_lines(<line1>, <line2>)
 command! -bar SpotlightClear call spotlight#clear()
+command! -bar SpotlightToggleRegion call spotlight#toggle_region()
+command! -bar SpotlightNext call spotlight#focus(1)
+command! -bar SpotlightPrev call spotlight#focus(-1)
 
 " ── <Plug> mappings (always defined; safe to remap) ──────────────────────────
 " xnoremap rather than vnoremap: Select mode must keep typing over the
@@ -78,6 +82,11 @@ command! -bar SpotlightClear call spotlight#clear()
 xnoremap <silent> <expr> <Plug>(SpotlightVisual) spotlight#visual_map()
 xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
+xnoremap <silent> <expr> <Plug>(SpotlightAddVisual) spotlight#visual_map(1)
+nnoremap <silent> <expr> <Plug>(SpotlightAddOperator) spotlight#add_operator_map()
+nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
+nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
+nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
 
 " ── Default key bindings ─────────────────────────────────────────────────────
 " Opt out with: let g:spotlight_no_default_mappings = 1
@@ -85,22 +94,33 @@ nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
 " <leader>hp) are fine: <leader>h{motion} resolves as soon as the motion is
 " typed. Only an existing mapping for the exact key is left alone.
 
-function! s:map_default(mode, plugs) abort
+function! s:map_default(mode, key, plugs) abort
     for l:plug in a:plugs
         if hasmapto(l:plug, a:mode)
             return
         endif
     endfor
-    let l:key = get(g:, 'spotlight_mapping', '<leader>h')
-    if !empty(maparg(l:key, a:mode))
+    if empty(a:key) || !empty(maparg(a:key, a:mode))
         return
     endif
-    execute a:mode . 'map <unique> ' . l:key . ' ' . a:plugs[0]
+    execute a:mode . 'map <unique> ' . a:key . ' ' . a:plugs[0]
 endfunction
 
 if !get(g:, 'spotlight_no_default_mappings', 0)
-    call s:map_default('x', ['<Plug>(SpotlightVisual)', '<Plug>(SpotlightToggle)'])
-    call s:map_default('n', ['<Plug>(SpotlightOperator)'])
+    let s:key = get(g:, 'spotlight_mapping', '<leader>h')
+    let s:add_key = get(g:, 'spotlight_add_mapping', '<leader>H')
+    call s:map_default('x', s:key,
+        \ ['<Plug>(SpotlightVisual)', '<Plug>(SpotlightToggle)'])
+    call s:map_default('n', s:key, ['<Plug>(SpotlightOperator)'])
+    call s:map_default('x', s:add_key, ['<Plug>(SpotlightAddVisual)'])
+    call s:map_default('n', s:add_key, ['<Plug>(SpotlightAddOperator)'])
+    call s:map_default('n', get(g:, 'spotlight_toggle_mapping',
+        \ empty(s:add_key) ? '' : s:add_key . 'x'), ['<Plug>(SpotlightToggleRegion)'])
+    call s:map_default('n', get(g:, 'spotlight_next_mapping', ']H'),
+        \ ['<Plug>(SpotlightNext)'])
+    call s:map_default('n', get(g:, 'spotlight_prev_mapping', '[H'),
+        \ ['<Plug>(SpotlightPrev)'])
+    unlet s:key s:add_key
 endif
 
 let &cpoptions = s:save_cpo

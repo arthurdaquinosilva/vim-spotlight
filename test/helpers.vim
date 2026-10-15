@@ -91,3 +91,12 @@ function! RequireTracking() abort
         throw 'Skipped: needs +textprop'
     endif
 endfunction
+
+" Noticing that a region's text was deleted needs extmark invalidation in
+" Neovim (0.10+); older versions keep a collapsed extmark instead.
+function! RequireDeletionTracking() abort
+    call RequireTracking()
+    if has('nvim') && !has('nvim-0.10')
+        throw 'Skipped: needs Neovim 0.10'
+    endif
+endfunction
