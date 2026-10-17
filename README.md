@@ -103,7 +103,7 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 - `<leader>hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**.
 - `<leader>hn` lights **only the next region** and jumps to it; keep pressing to walk through them, and past the last one everything is lit again. `<leader>hb` goes back. Switched-off regions are skipped.
 - `<leader>hd` lights the **block of code around the cursor**, found by indentation (works in any language, no language server needed): the innermost `if`, loop, function, JSX tag… with its closing `}` / `</tag>`. Then `<leader>hn` **steps through every block inside it** (each `if`, loop, nested function or tag) in order, and after the last one lights the whole block again; `<leader>hb` goes backwards. Cursor on a method name → `<leader>hd` lights the method, `<leader>hn` walks its insides.
-- `<leader>hm` turns on **follow mode**: the block under the cursor is lit automatically wherever you move; `<leader>hm` again (or `<leader>hc`) turns it off. Works per buffer, and alongside `g:spotlight_suppress_cursor_events`.
+- `<leader>hm` turns on **follow mode**: the block under the cursor is lit automatically wherever you move; `<leader>hm` again (or `<leader>hc`) turns it off. While following, `<leader>hn` / `<leader>hb` walk the blocks inside the lit one, and moving the cursor yourself (`j`, `/`, …) picks the block under it again. Works per buffer, and alongside `g:spotlight_suppress_cursor_events`.
 - `<leader>hc` or `:SpotlightClear` removes every region. To start over with one region, clear first or use `:Spotlight` with a range.
 
 ### Commands

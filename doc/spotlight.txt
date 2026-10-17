@@ -111,7 +111,10 @@ while you type. On a top-level line outside any block nothing is dimmed.
 <leader>hm again, or <leader>hc, turns it off. Follow mode is per buffer and
 keeps working with |g:spotlight_suppress_cursor_events|, because it checks
 the cursor with a short timer instead of cursor events (needs |+timers|).
-While it is on, the block under the cursor replaces any other region.
+While it is on, the block under the cursor replaces any other region, and
+<leader>hn / <leader>hb walk the blocks inside the lit block, as after
+<leader>hd. Moving the cursor yourself (j, /, G, ...) goes back to lighting
+the block under it.
 
 <leader>hc or |:SpotlightClear| removes every region. To start over with a
 single region, use <leader>hc first, or |:Spotlight| with a range.

@@ -781,6 +781,17 @@ endfunction
 " all of them again.
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})
+    " In follow mode, walk the blocks inside the block it has lit.
+    if has_key(s:follow, bufnr('%'))
+        \ && index(get(l:state, 'walk', []), get(l:state, 'focus', 0)) < 0
+        let l:outer = s:block_around(line('.'))
+        if empty(l:outer)
+            call s:message('no indented block around the cursor')
+            return
+        endif
+        call s:start_walk(l:outer)
+        let l:state = b:spotlight
+    endif
     " After <leader>hd: walk the blocks inside the outer one, wrapping round
     " to the whole outer block.
     let l:walk = get(l:state, 'walk', [])
@@ -794,6 +805,7 @@ function! spotlight#focus(step) abort
         call cursor(l:region.pos[0], 1)
         normal! ^
         call s:render_buffer(bufnr('%'))
+        call s:follow_sync()
         return
     endif
     let l:regions = sort(filter(copy(get(l:state, 'regions', [])),
@@ -916,6 +928,14 @@ function! spotlight#blocks() abort
         call s:message('no indented block around the cursor')
         return
     endif
+    call s:start_walk(l:outer)
+    call s:follow_sync()
+endfunction
+
+" Light {outer} and make it and every block inside it the regions walked by
+" <leader>hn / hb.
+function! s:start_walk(outer) abort
+    let l:outer = a:outer
     let l:replace = 1
     for [l:first, l:last] in [l:outer] + s:blocks_inside(l:outer[0], l:outer[1])
         call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
@@ -962,6 +982,14 @@ function! spotlight#follow_start() abort
             \ {'repeat': -1})
     endif
     echo 'spotlight: following the cursor'
+endfunction
+
+" The cursor was moved by the plugin itself (walking blocks): follow mode
+" must not treat that as the user moving to another block.
+function! s:follow_sync() abort
+    if has_key(s:follow, bufnr('%'))
+        let b:spotlight_follow_key = line('.') . ':' . b:changedtick
+    endif
 endfunction
 
 function! s:follow_stop(bufnr) abort
