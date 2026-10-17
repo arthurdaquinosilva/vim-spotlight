@@ -14,6 +14,7 @@ set cpoptions&vim
 "   regions  list of regions, in the order they were added
 "   focus    0 to light every enabled region, or the id of the one region
 "            lit on its own (<leader>hn / <leader>hb)
+"   zoom     after <leader>hd: region ids from the innermost block outwards
 "   lines    buffer line count when the regions were last updated
 "   next_id  id for the next region
 "
@@ -567,6 +568,7 @@ function! s:activate(mode, pos, vcols, replace) abort
     let b:spotlight.lines = line('$')
     " A new region is meant to be seen: show everything again.
     let b:spotlight.focus = 0
+    let b:spotlight.zoom = []
     call add(b:spotlight.regions, l:region)
 
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
@@ -770,6 +772,7 @@ function! spotlight#toggle_region() abort
     let l:region = sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
     let l:region.enabled = !l:region.enabled
     let l:state.focus = 0
+    let l:state.zoom = []
     call s:render_buffer(bufnr('%'))
 endfunction
 
@@ -778,6 +781,19 @@ endfunction
 " all of them again.
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})
+    " After <leader>hd: widen to the enclosing block (1) or narrow back (-1).
+    let l:zoom = get(l:state, 'zoom', [])
+    if index(l:zoom, get(l:state, 'focus', 0)) >= 0
+        let l:at = index(l:zoom, l:state.focus) + a:step
+        if l:at < 0 || l:at >= len(l:zoom)
+            call s:message(a:step > 0 ? 'already at the outermost block'
+                \ : 'already at the innermost block')
+            return
+        endif
+        let l:state.focus = l:zoom[l:at]
+        call s:render_buffer(bufnr('%'))
+        return
+    endif
     let l:regions = sort(filter(copy(get(l:state, 'regions', [])),
         \ 'v:val.enabled'), function('s:by_position'))
     if empty(l:regions)
@@ -801,69 +817,98 @@ function! spotlight#focus(step) abort
     call s:render_buffer(bufnr('%'))
 endfunction
 
-" ── Scopes ───────────────────────────────────────────────────────────────────
+" ── Blocks ───────────────────────────────────────────────────────────────────
 "
-" <leader>hd turns the file's functions, classes and methods into regions:
-" one per scope (a class and each of its methods), focused on the scope under
-" the cursor so <leader>hn / hb walk through them. Scopes come from
-" g:SpotlightScopeProvider when set (a Funcref returning [[first, last],
-" ...] line pairs), otherwise from coc.nvim's document symbols.
+" <leader>hd lights the innermost block of code around the cursor, found by
+" indentation: a line followed by more-indented lines starts a block, which
+" runs until the indentation comes back (blank lines don't end it), plus a
+" closing line at the same indentation (}, ), ], </tag>, />, end, ...). Every
+" enclosing block becomes a region too, and <leader>hn / hb zoom out to the
+" enclosing block and back in instead of walking the regions.
 
-let s:scope_kinds = ['Class', 'Interface', 'Struct', 'Enum', 'Module',
-    \ 'Namespace', 'Function', 'Method', 'Constructor']
+let s:closer = '^\s*\%([\])}]\|</\|/\=>\|end\>\|fi\>\|done\>\|esac\>\)'
 
-function! s:coc_scopes() abort
-    if !exists('*CocAction') || !get(g:, 'coc_service_initialized', 0)
+function! s:blank(lnum) abort
+    return getline(a:lnum) =~# '^\s*$'
+endfunction
+
+" The block whose header is {head}: [head, last line], or [] when the next
+" non-blank line is not indented deeper.
+function! s:block_at(head) abort
+    let l:ind = indent(a:head)
+    let l:next = nextnonblank(a:head + 1)
+    if !l:next || indent(l:next) <= l:ind
         return []
     endif
-    try
-        let l:symbols = CocAction('documentSymbols')
-    catch
-        return []
-    endtry
-    let l:scopes = []
-    for l:symbol in type(l:symbols) == type([]) ? l:symbols : []
-        if type(l:symbol) == type({})
-            \ && index(s:scope_kinds, get(l:symbol, 'kind', '')) >= 0
-            \ && has_key(l:symbol, 'range')
-            call add(l:scopes, [l:symbol.range.start.line + 1,
-                \ l:symbol.range.end.line + 1])
+    let l:last = l:next
+    let l:lnum = l:next + 1
+    while l:lnum <= line('$') && (s:blank(l:lnum) || indent(l:lnum) > l:ind)
+        if !s:blank(l:lnum)
+            let l:last = l:lnum
         endif
-    endfor
-    return l:scopes
+        let l:lnum += 1
+    endwhile
+    let l:after = nextnonblank(l:last + 1)
+    if l:after && indent(l:after) == l:ind && getline(l:after) =~# s:closer
+        let l:last = l:after
+    endif
+    return [a:head, l:last]
 endfunction
 
-function! s:find_scopes() abort
-    let l:Provider = get(g:, 'SpotlightScopeProvider', '')
-    let l:scopes = empty(l:Provider) ? s:coc_scopes() : call(l:Provider, [])
-    let l:last = line('$')
-    call filter(l:scopes, 'type(v:val) == type([]) && len(v:val) == 2'
-        \ . ' && v:val[0] >= 1 && v:val[0] <= v:val[1] && v:val[1] <= l:last')
-    return uniq(sort(l:scopes, {a, b -> a[0] != b[0] ? a[0] - b[0] : b[1] - a[1]}))
+" Header of the block that directly contains line {lnum}: the nearest line
+" above it with less indentation, or 0.
+function! s:parent_head(lnum) abort
+    let l:ind = indent(a:lnum)
+    let l:lnum = prevnonblank(a:lnum - 1)
+    while l:lnum > 0 && indent(l:lnum) >= l:ind
+        let l:lnum = prevnonblank(l:lnum - 1)
+    endwhile
+    return l:lnum
 endfunction
 
-function! spotlight#scopes() abort
-    let l:scopes = s:find_scopes()
-    if empty(l:scopes)
-        call s:message('no functions, classes or methods found'
-            \ . ' (needs coc.nvim, or g:SpotlightScopeProvider)')
+" Blocks around {lnum}, innermost first.
+function! s:blocks_around(lnum) abort
+    let l:lnum = s:blank(a:lnum) ? prevnonblank(a:lnum) : a:lnum
+    if !l:lnum
+        return []
+    endif
+    " On a closing line (}), belong to the block it closes.
+    if getline(l:lnum) =~# s:closer
+        let l:open = prevnonblank(l:lnum - 1)
+        while l:open > 0 && indent(l:open) > indent(l:lnum)
+            let l:open = prevnonblank(l:open - 1)
+        endwhile
+        if l:open > 0 && indent(l:open) == indent(l:lnum)
+            let l:lnum = l:open
+        endif
+    endif
+    let l:blocks = []
+    let l:block = s:block_at(l:lnum)
+    let l:head = empty(l:block) ? s:parent_head(l:lnum) : l:lnum
+    while l:head > 0
+        let l:block = s:block_at(l:head)
+        if !empty(l:block) && l:block[1] >= a:lnum
+            call add(l:blocks, l:block)
+        endif
+        let l:head = s:parent_head(l:head)
+    endwhile
+    return l:blocks
+endfunction
+
+function! spotlight#blocks() abort
+    let l:blocks = s:blocks_around(line('.'))
+    if empty(l:blocks)
+        call s:message('no indented block around the cursor')
         return
     endif
     let l:replace = 1
-    for [l:first, l:last] in l:scopes
+    for [l:first, l:last] in l:blocks
         call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
         let l:replace = 0
     endfor
-    " Focus the innermost scope under the cursor, or else the next one below.
-    let l:lnum = line('.')
-    let l:regions = sort(copy(b:spotlight.regions), function('s:by_position'))
-    let l:here = filter(copy(l:regions),
-        \ 'v:val.pos[0] <= l:lnum && l:lnum <= v:val.pos[2]')
-    let l:below = filter(copy(l:regions), 'v:val.pos[0] > l:lnum')
-    let l:pick = !empty(l:here)
-        \ ? sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
-        \ : (!empty(l:below) ? l:below[0] : l:regions[0])
-    let b:spotlight.focus = l:pick.id
+    " Regions were added innermost first: zoom from there.
+    let b:spotlight.zoom = map(copy(b:spotlight.regions), 'v:val.id')
+    let b:spotlight.focus = b:spotlight.zoom[0]
     call s:render_buffer(bufnr('%'))
 endfunction
 

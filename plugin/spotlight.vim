@@ -74,7 +74,7 @@ command! -bar SpotlightClear call spotlight#clear()
 command! -bar SpotlightToggleRegion call spotlight#toggle_region()
 command! -bar SpotlightNext call spotlight#focus(1)
 command! -bar SpotlightPrev call spotlight#focus(-1)
-command! -bar SpotlightScopes call spotlight#scopes()
+command! -bar SpotlightBlocks call spotlight#blocks()
 
 " ── <Plug> mappings (always defined; safe to remap) ──────────────────────────
 " xnoremap rather than vnoremap: Select mode must keep typing over the
@@ -87,7 +87,7 @@ nnoremap <silent> <Plug>(SpotlightClear) :<C-u>call spotlight#clear()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
 nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
 nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
-nnoremap <silent> <Plug>(SpotlightScopes) :<C-u>call spotlight#scopes()<CR>
+nnoremap <silent> <Plug>(SpotlightBlocks) :<C-u>call spotlight#blocks()<CR>
 " One region at a time, as in 1.x: the operator clears when a spotlight is
 " on, Visual mode replaces it (or, for SpotlightToggle, clears it).
 nnoremap <silent> <expr> <Plug>(SpotlightOperator) spotlight#operator_map()
@@ -98,8 +98,8 @@ xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 " Opt out with: let g:spotlight_no_default_mappings = 1
 " Everything hangs off one key (<leader>h): the key plus a motion lights or
 " adds a region, the key plus c / x / n / b clears, switches a region off or
-" on, and focuses the next / previous region; d makes regions of the file's
-" functions, classes and methods. Those letters are not useful
+" on, and focuses the next / previous region; d lights the indented block
+" around the cursor (then n / b zoom out and in). Those letters are not useful
 " as motions here. Longer mappings that merely start with the same key (e.g.
 " vim-gitgutter's <leader>hp) are fine: <leader>h{motion} resolves as soon as
 " the motion is typed. Only an existing mapping for the exact key is left
@@ -128,7 +128,7 @@ if !get(g:, 'spotlight_no_default_mappings', 0)
         \ ['toggle', 'x', 'SpotlightToggleRegion'],
         \ ['next', 'n', 'SpotlightNext'],
         \ ['prev', 'b', 'SpotlightPrev'],
-        \ ['scopes', 'd', 'SpotlightScopes'],
+        \ ['blocks', 'd', 'SpotlightBlocks'],
         \ ]
         call s:map_default('n', get(g:, 'spotlight_' . s:name . '_mapping',
             \ empty(s:key) ? '' : s:key . s:letter), ['<Plug>(' . s:plug . ')'])

@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- `<leader>hd` (`:SpotlightScopes`): make regions of the file's functions, classes and methods (from coc.nvim's document symbols, or `g:SpotlightScopeProvider`), light the one under the cursor, and walk through them with `<leader>hn` / `<leader>hb`. Option `g:spotlight_scopes_mapping`.
+- `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Then `<leader>hn` / `<leader>hb` zoom out to the enclosing block and back in. Option `g:spotlight_blocks_mapping`.
 
 ## [2.0.0] - 2026-10-15
 

@@ -61,7 +61,7 @@ vim -u NONE -c 'helptags ~/.vim/pack/plugins/start/vim-spotlight/doc' -c q
 | Normal | `<leader>hc`                     | Clear everything                                        |
 | Normal | `<leader>hx`                     | Switch the region under the cursor off/on               |
 | Normal | `<leader>hn` / `<leader>hb`      | Light only the next / previous region                   |
-| Normal | `<leader>hd`                     | Regions from the file's functions, classes and methods  |
+| Normal | `<leader>hd`                     | Light the indented block around the cursor (then `hn`/`hb` zoom out/in) |
 
 ### Operator examples
 
@@ -101,7 +101,7 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 
 - `<leader>hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**.
 - `<leader>hn` lights **only the next region** and jumps to it; keep pressing to walk through them, and past the last one everything is lit again. `<leader>hb` goes back. Switched-off regions are skipped.
-- `<leader>hd` turns the file's **functions, classes and methods** into regions (a class and each of its methods), lights the one under the cursor, and `<leader>hn` / `<leader>hb` walk through them. Scopes come from [coc.nvim](https://github.com/neoclide/coc.nvim)'s document symbols (a language server must be running), or from your own `g:SpotlightScopeProvider`.
+- `<leader>hd` lights the **block of code around the cursor**, found by indentation (works in any language, no language server needed): the innermost `if`, loop, function, JSX tag… with its closing `}` / `</tag>`. Then `<leader>hn` **zooms out** to the enclosing block, level by level, and `<leader>hb` zooms back in.
 - `<leader>hc` or `:SpotlightClear` removes every region. To start over with one region, clear first or use `:Spotlight` with a range.
 
 ### Commands
