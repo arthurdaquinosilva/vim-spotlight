@@ -103,6 +103,14 @@ and <leader>hn walks the blocks inside it. Adding a region or switching one
 off ends the walk, and <leader>hn / <leader>hb go back to walking the
 regions.
 
+<leader>hm turns on follow mode: from then on the block around the cursor
+(as <leader>hd finds it) is lit automatically wherever you move, including
+while you type. On a top-level line outside any block nothing is dimmed.
+<leader>hm again, or <leader>hc, turns it off. Follow mode is per buffer and
+keeps working with |g:spotlight_suppress_cursor_events|, because it checks
+the cursor with a short timer instead of cursor events (needs |+timers|).
+While it is on, the block under the cursor replaces any other region.
+
 <leader>hc or |:SpotlightClear| removes every region. To start over with a
 single region, use <leader>hc first, or |:Spotlight| with a range.
 
@@ -135,6 +143,10 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 :SpotlightBlocks        Light the indented block around the cursor; then
                         walk the blocks inside it with |:SpotlightNext| /
                         |:SpotlightPrev|.
+
+                                                            *:SpotlightFollow*
+:SpotlightFollow        Turn follow mode on or off: keep lighting the block
+                        around the cursor as it moves.
 
                                              *:SpotlightNext* *:SpotlightPrev*
 :SpotlightNext          Light only the next region; past the last one, light
@@ -171,7 +183,7 @@ NORMAL MODE                                              *spotlight-normal*
                         stays lit. A character-wise motion (iw, i{, ...)
                         lights exactly the covered characters.
 
-<leader>hc              Clear every region.
+<leader>hc              Clear every region (and stop follow mode).
 
 <leader>hx              Switch the region under the cursor off or on.
 
@@ -179,6 +191,9 @@ NORMAL MODE                                              *spotlight-normal*
                         last one, light all of them again.
 
 <leader>hb              Same as <leader>hn, going back.
+
+<leader>hm              Turn follow mode on or off: the block around the
+                        cursor is lit automatically as you move.
 
 <leader>hd              Light the indented block around the cursor. Then
                         <leader>hn / <leader>hb walk through the blocks
@@ -224,6 +239,7 @@ These are always defined, whatever the default-mapping settings:
     <Plug>(SpotlightNext)         Normal mode: focus the next region.
     <Plug>(SpotlightPrev)         Normal mode: focus the previous region.
     <Plug>(SpotlightBlocks)       Normal mode: the block around the cursor.
+    <Plug>(SpotlightFollow)       Normal mode: follow mode on / off.
 
 One region at a time, as in 1.x:
 
@@ -259,11 +275,13 @@ g:spotlight_mapping     Default: '<leader>h'
                                                   *g:spotlight_next_mapping*
                                                   *g:spotlight_prev_mapping*
                                                 *g:spotlight_blocks_mapping*
+                                                *g:spotlight_follow_mapping*
 g:spotlight_clear_mapping       Default: |g:spotlight_mapping| followed by c
 g:spotlight_toggle_mapping      Default: |g:spotlight_mapping| followed by x
 g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
 g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
 g:spotlight_blocks_mapping      Default: |g:spotlight_mapping| followed by d
+g:spotlight_follow_mapping      Default: |g:spotlight_mapping| followed by m
                         Keys that clear every region, switch the region
                         under the cursor off or on, and focus the next and
                         previous region. Set one to '' to leave it unmapped.

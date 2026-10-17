@@ -927,12 +927,96 @@ function! spotlight#blocks() abort
     call s:render_buffer(bufnr('%'))
 endfunction
 
-function! spotlight#clear() abort
-    let l:bufnr = bufnr('%')
-    call s:anchor_clear(l:bufnr)
+" ── Follow mode ──────────────────────────────────────────────────────────────
+"
+" <leader>hm: while on, the block around the cursor is lit automatically as
+" the cursor moves. A timer checks the cursor line (rather than CursorMoved),
+" so it keeps working while g:spotlight_suppress_cursor_events ignores cursor
+" events. Work is only done when the line or the text changed.
+
+" Buffers following the cursor, by number.
+let s:follow = {}
+let s:follow_timer = -1
+
+function! spotlight#follow_toggle() abort
+    if has_key(s:follow, bufnr('%'))
+        call spotlight#clear()
+        echo 'spotlight: stopped following the cursor'
+    else
+        call spotlight#follow_start()
+    endif
+endfunction
+
+function! spotlight#follow_start() abort
+    if !exists('*timer_start')
+        call s:message('following the cursor needs +timers')
+        return
+    endif
+    let s:follow[bufnr('%')] = 1
+    let b:spotlight_follow_key = ''
+    call s:follow_update()
+    if s:follow_timer == -1
+        let s:follow_timer = timer_start(100, function('s:on_follow'),
+            \ {'repeat': -1})
+    endif
+    echo 'spotlight: following the cursor'
+endfunction
+
+function! s:follow_stop(bufnr) abort
+    if has_key(s:follow, a:bufnr)
+        call remove(s:follow, a:bufnr)
+    endif
+    call setbufvar(a:bufnr, 'spotlight_follow_key', '')
+    if empty(s:follow) && s:follow_timer != -1
+        call timer_stop(s:follow_timer)
+        let s:follow_timer = -1
+    endif
+endfunction
+
+function! s:on_follow(timer) abort
+    for l:bufnr in keys(s:follow)
+        if !bufexists(str2nr(l:bufnr))
+            call s:follow_stop(str2nr(l:bufnr))
+        endif
+    endfor
+    if has_key(s:follow, bufnr('%')) && mode() !=# 'c'
+        call s:follow_update()
+    endif
+endfunction
+
+function! s:follow_update() abort
+    let l:key = line('.') . ':' . b:changedtick
+    if l:key ==# get(b:, 'spotlight_follow_key', '')
+        return
+    endif
+    let b:spotlight_follow_key = l:key
+    let l:block = s:block_around(line('.'))
+    let l:regions = get(get(b:, 'spotlight', {}), 'regions', [])
+    if empty(l:block)
+        " Top level: nothing to light, but keep following.
+        if !empty(l:regions)
+            call s:clear_regions(bufnr('%'))
+        endif
+        return
+    endif
+    if len(l:regions) == 1 && l:regions[0].pos[0] == l:block[0]
+        \ && l:regions[0].pos[2] == l:block[1]
+        return
+    endif
+    call s:activate('line', [l:block[0], 1, l:block[1], 1], [], 1)
+endfunction
+
+function! s:clear_regions(bufnr) abort
+    call s:anchor_clear(a:bufnr)
     silent! unlet b:spotlight
-    execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
-    call s:render_buffer(l:bufnr)
+    execute 'autocmd! spotlight_buffer * <buffer=' . a:bufnr . '>'
+    call s:render_buffer(a:bufnr)
+endfunction
+
+" Clear every region in the current buffer and stop following the cursor.
+function! spotlight#clear() abort
+    call s:follow_stop(bufnr('%'))
+    call s:clear_regions(bufnr('%'))
 endfunction
 
 " Re-read the anchors after an edit and redraw every window on {bufnr}.
