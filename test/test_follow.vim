@@ -44,14 +44,15 @@ function! Test_follow_lights_block_under_cursor() abort
     endtry
 endfunction
 
-function! Test_follow_top_level_dims_nothing_but_keeps_following() abort
+function! Test_follow_top_level_lights_chunk_and_keeps_following() abort
     call s:require_timers()
-    call SetLines(s:py)
+    call SetLines(s:py + ['', 'x = 2', 'y = 3'])
     try
         call Keys('4G\hm')
-        call cursor(7, 1)
+        " Top-level code: the chunk between blank lines.
+        call cursor(9, 1)
         call s:settle()
-        call assert_equal([], SpotlightMatches())
+        call assert_equal([9, 10], s:lit())
         call cursor(4, 1)
         call s:settle()
         call assert_equal([3, 4], s:lit())

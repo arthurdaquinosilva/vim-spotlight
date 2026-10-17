@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Then `<leader>hn` / `<leader>hb` walk through every block inside it (nested ones too), wrapping back to the whole block. Blocks lit this way keep following the indentation as you edit (a line added after the last line of a Python block joins it). Option `g:spotlight_blocks_mapping`.
+- `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Chunks of lines between blank lines count as blocks too. Then `<leader>hn` / `<leader>hb` walk through every block inside it (nested ones too), wrapping back to the whole block. Blocks lit this way keep following the indentation as you edit (a line added after the last line of a Python block joins it). Option `g:spotlight_blocks_mapping`.
 - `<leader>hm` (`:SpotlightFollow`): follow mode, lighting the block under the cursor automatically as it moves, until `<leader>hm` or `<leader>hc`. While following, `<leader>hn` / `<leader>hb` walk the blocks inside the lit one. Option `g:spotlight_follow_mapping`.
 
 ## [2.0.0] - 2026-10-15

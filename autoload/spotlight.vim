@@ -836,10 +836,11 @@ endfunction
 " <leader>hd lights the innermost block of code around the cursor, found by
 " indentation: a line followed by more-indented lines starts a block, which
 " runs until the indentation comes back (blank lines don't end it), plus a
-" closing line at the same indentation (}, ), ], </tag>, />, end, ...). Every
-" block inside it (nested ones too) becomes a region as well, and
-" <leader>hn / hb walk through those, coming back to the whole block after the
-" last one.
+" closing line at the same indentation (}, ), ], </tag>, />, end, ...).
+" Inside a block, runs of lines separated by blank lines (chunks) count as
+" blocks too. Every block and chunk inside the lit one becomes a region as
+" well, and <leader>hn / hb walk through those, coming back to the whole
+" block after the last one.
 
 let s:closer = '^\s*\%([\])}]\|</\|/\=>\|end\>\|fi\>\|done\>\|esac\>\)'
 
@@ -881,7 +882,51 @@ function! s:parent_head(lnum) abort
     return l:lnum
 endfunction
 
-" The innermost block around {lnum}, or [].
+" Lines [first, last] of {block}'s body: after its header, without its own
+" closing line.
+function! s:body(block) abort
+    let [l:head, l:last] = a:block
+    if l:last > l:head && indent(l:last) == indent(l:head)
+        \ && getline(l:last) =~# s:closer
+        let l:last = prevnonblank(l:last - 1)
+    endif
+    return [l:head + 1, l:last]
+endfunction
+
+" Chunks of the body [first, last]: runs of lines split by blank lines at the
+" body's own indentation. A blank line inside a deeper block (followed by a
+" more indented line) does not split.
+function! s:chunks(first, last) abort
+    let l:lnum = nextnonblank(a:first)
+    if !l:lnum || l:lnum > a:last
+        return []
+    endif
+    let l:base = indent(l:lnum)
+    let l:chunks = []
+    while l:lnum && l:lnum <= a:last
+        let l:end = l:lnum
+        let l:next = l:lnum + 1
+        while l:next <= a:last
+            if s:blank(l:next)
+                let l:after = nextnonblank(l:next)
+                if !l:after || l:after > a:last || indent(l:after) <= l:base
+                    break
+                endif
+                let l:next = l:after
+                continue
+            endif
+            let l:end = l:next
+            let l:next += 1
+        endwhile
+        call add(l:chunks, [l:lnum, l:end])
+        let l:lnum = nextnonblank(l:end + 1)
+    endwhile
+    return l:chunks
+endfunction
+
+" The innermost block around {lnum}: on a header line, its block; otherwise
+" the chunk of lines it is in (when the enclosing body has more than one),
+" or else the enclosing block. [] when there is none.
 function! s:block_around(lnum) abort
     let l:lnum = s:blank(a:lnum) ? prevnonblank(a:lnum) : a:lnum
     if !l:lnum
@@ -894,32 +939,88 @@ function! s:block_around(lnum) abort
             let l:open = prevnonblank(l:open - 1)
         endwhile
         if l:open > 0 && indent(l:open) == indent(l:lnum)
-            let l:lnum = l:open
+            return s:block_at(l:open)
         endif
     endif
-    let l:head = l:lnum
+    let l:own = s:block_at(l:lnum)
+    if !empty(l:own)
+        return l:own
+    endif
+    let l:parent = []
+    let l:head = s:parent_head(l:lnum)
     while l:head > 0
         let l:block = s:block_at(l:head)
-        if !empty(l:block) && l:block[1] >= a:lnum
-            return l:block
+        if !empty(l:block) && l:block[1] >= l:lnum
+            let l:parent = l:block
+            break
+        endif
+        let l:head = s:parent_head(l:head)
+    endwhile
+    let l:range = empty(l:parent) ? [1, line('$')] : s:body(l:parent)
+    let l:chunks = s:chunks(l:range[0], l:range[1])
+    if len(l:chunks) > 1
+        for l:chunk in l:chunks
+            if l:chunk[0] <= l:lnum && l:lnum <= l:chunk[1]
+                return l:chunk
+            endif
+        endfor
+    endif
+    return l:parent
+endfunction
+
+" The innermost indented block that strictly contains {block}, or [].
+function! s:enclosing_block(block) abort
+    let l:head = s:parent_head(a:block[0])
+    while l:head > 0
+        let l:candidate = s:block_at(l:head)
+        if !empty(l:candidate) && l:candidate[1] >= a:block[1]
+            \ && l:candidate != a:block
+            return l:candidate
         endif
         let l:head = s:parent_head(l:head)
     endwhile
     return []
 endfunction
 
-" Every block inside [{first}, {last}], in file order.
-function! s:blocks_inside(first, last) abort
-    let l:blocks = []
-    for l:lnum in range(a:first + 1, a:last)
-        if !s:blank(l:lnum)
-            let l:block = s:block_at(l:lnum)
-            if !empty(l:block) && l:block[1] <= a:last
-                call add(l:blocks, l:block)
+" What <leader>hn walks inside the lines [first, last], in file order: each
+" chunk (when there is more than one), then each block whose header is at
+" the chunk's indentation, followed by what is inside that block.
+function! s:walk_items(first, last) abort
+    let l:chunks = s:chunks(a:first, a:last)
+    let l:items = []
+    for l:chunk in l:chunks
+        if len(l:chunks) > 1
+            call add(l:items, l:chunk)
+        endif
+        let l:base = indent(l:chunk[0])
+        for l:lnum in range(l:chunk[0], l:chunk[1])
+            if s:blank(l:lnum) || indent(l:lnum) != l:base
+                continue
             endif
+            let l:block = s:block_at(l:lnum)
+            if !empty(l:block) && l:block[1] <= l:chunk[1]
+                call add(l:items, l:block)
+                call extend(l:items, call('s:walk_items', s:body(l:block)))
+            endif
+        endfor
+    endfor
+    return l:items
+endfunction
+
+" {outer} followed by everything to walk inside it, without repeats.
+function! s:walk_list(outer) abort
+    let l:inner = a:outer == s:block_at(a:outer[0])
+        \ ? s:body(a:outer) : a:outer
+    let l:seen = {}
+    let l:list = []
+    for l:item in [a:outer] + s:walk_items(l:inner[0], l:inner[1])
+        let l:key = l:item[0] . '-' . l:item[1]
+        if !has_key(l:seen, l:key)
+            let l:seen[l:key] = 1
+            call add(l:list, l:item)
         endif
     endfor
-    return l:blocks
+    return l:list
 endfunction
 
 function! spotlight#blocks() abort
@@ -935,17 +1036,31 @@ endfunction
 " Light {outer} and make it and every block inside it the regions walked by
 " <leader>hn / hb.
 function! s:start_walk(outer) abort
-    let l:outer = a:outer
+    let l:list = s:walk_list(a:outer)
+    let l:start = 0
+    if len(l:list) == 1
+        " Nothing inside: walk its neighbours in the enclosing block (or the
+        " top level), starting from it.
+        let l:parent = s:enclosing_block(a:outer)
+        let l:list = empty(l:parent) ? s:walk_items(1, line('$'))
+            \ : s:walk_list(l:parent)
+        let l:start = max([0, index(l:list, a:outer)])
+        if empty(l:list)
+            let l:list = [a:outer]
+        endif
+    endif
     let l:replace = 1
-    for [l:first, l:last] in [l:outer] + s:blocks_inside(l:outer[0], l:outer[1])
+    for [l:first, l:last] in l:list
         call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
         let l:replace = 0
-        " Remember it is a block, so edits re-measure where it ends.
-        let b:spotlight.regions[-1].block_indent = indent(l:first)
+        " An indented block re-measures where it ends as you edit.
+        if s:block_at(l:first) == [l:first, l:last]
+            let b:spotlight.regions[-1].block_indent = indent(l:first)
+        endif
     endfor
-    " Regions were added outer block first, then the inner ones in order.
+    " Regions were added in walking order.
     let b:spotlight.walk = map(copy(b:spotlight.regions), 'v:val.id')
-    let b:spotlight.focus = b:spotlight.walk[0]
+    let b:spotlight.focus = b:spotlight.walk[l:start]
     call s:render_buffer(bufnr('%'))
 endfunction
 

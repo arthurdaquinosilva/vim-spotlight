@@ -93,14 +93,21 @@ any regions you had. Blocks are found by indentation, so this works in any
 file: a line followed by more-indented lines starts a block, which runs
 until the indentation comes back (blank lines inside don't end it), plus a
 closing line at the same indentation such as }, ), ], </div>, /> or end. On a
-header line (if (x) {) or its closing line, you get that block. As you edit,
+header line (if (x) {) or its closing line, you get that block.
+
+Inside a block, groups of lines separated by blank lines (chunks, typically
+a comment and the code under it) count as blocks too, together with any
+if / while they contain. With the cursor on such a line you get its chunk;
+when a body has no blank lines, the enclosing block. Top-level code is split
+into chunks the same way. As you edit,
 these blocks keep their extent by indentation too: a line added after the
 last one of a Python block, at the block's indentation, becomes part of it.
 
-After <leader>hd, <leader>hn steps through every block inside it - each if,
-loop, nested function or tag, nested ones too - in file order, moving the
+After <leader>hd, <leader>hn steps through everything inside it - each chunk,
+if, loop, nested function or tag, nested ones too - in file order, moving the
 cursor there. Past the last one the whole block is lit again; <leader>hb goes
-backwards. With the cursor on a method's name, <leader>hd lights the method
+backwards. On a chunk with nothing inside, <leader>hn / <leader>hb step to
+the chunks and blocks around it instead. With the cursor on a method's name, <leader>hd lights the method
 and <leader>hn walks the blocks inside it. Adding a region or switching one
 off ends the walk, and <leader>hn / <leader>hb go back to walking the
 regions.
