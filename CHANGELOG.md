@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
-- `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Then `<leader>hn` / `<leader>hb` zoom out to the enclosing block and back in. Option `g:spotlight_blocks_mapping`.
+- `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Then `<leader>hn` / `<leader>hb` walk through every block inside it (nested ones too), wrapping back to the whole block. Option `g:spotlight_blocks_mapping`.
 
 ## [2.0.0] - 2026-10-15
 

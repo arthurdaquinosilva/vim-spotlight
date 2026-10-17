@@ -14,7 +14,7 @@ set cpoptions&vim
 "   regions  list of regions, in the order they were added
 "   focus    0 to light every enabled region, or the id of the one region
 "            lit on its own (<leader>hn / <leader>hb)
-"   zoom     after <leader>hd: region ids from the innermost block outwards
+"   walk     after <leader>hd: region ids of the block and the blocks inside
 "   lines    buffer line count when the regions were last updated
 "   next_id  id for the next region
 "
@@ -568,7 +568,7 @@ function! s:activate(mode, pos, vcols, replace) abort
     let b:spotlight.lines = line('$')
     " A new region is meant to be seen: show everything again.
     let b:spotlight.focus = 0
-    let b:spotlight.zoom = []
+    let b:spotlight.walk = []
     call add(b:spotlight.regions, l:region)
 
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
@@ -772,7 +772,7 @@ function! spotlight#toggle_region() abort
     let l:region = sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
     let l:region.enabled = !l:region.enabled
     let l:state.focus = 0
-    let l:state.zoom = []
+    let l:state.walk = []
     call s:render_buffer(bufnr('%'))
 endfunction
 
@@ -781,16 +781,18 @@ endfunction
 " all of them again.
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})
-    " After <leader>hd: widen to the enclosing block (1) or narrow back (-1).
-    let l:zoom = get(l:state, 'zoom', [])
-    if index(l:zoom, get(l:state, 'focus', 0)) >= 0
-        let l:at = index(l:zoom, l:state.focus) + a:step
-        if l:at < 0 || l:at >= len(l:zoom)
-            call s:message(a:step > 0 ? 'already at the outermost block'
-                \ : 'already at the innermost block')
-            return
-        endif
-        let l:state.focus = l:zoom[l:at]
+    " After <leader>hd: walk the blocks inside the outer one, wrapping round
+    " to the whole outer block.
+    let l:walk = get(l:state, 'walk', [])
+    if index(l:walk, get(l:state, 'focus', 0)) >= 0
+        let l:at = (index(l:walk, l:state.focus) + a:step + len(l:walk))
+            \ % len(l:walk)
+        let l:state.focus = l:walk[l:at]
+        let l:region = filter(copy(l:state.regions),
+            \ 'v:val.id == l:state.focus')[0]
+        normal! m'
+        call cursor(l:region.pos[0], 1)
+        normal! ^
         call s:render_buffer(bufnr('%'))
         return
     endif
@@ -823,8 +825,9 @@ endfunction
 " indentation: a line followed by more-indented lines starts a block, which
 " runs until the indentation comes back (blank lines don't end it), plus a
 " closing line at the same indentation (}, ), ], </tag>, />, end, ...). Every
-" enclosing block becomes a region too, and <leader>hn / hb zoom out to the
-" enclosing block and back in instead of walking the regions.
+" block inside it (nested ones too) becomes a region as well, and
+" <leader>hn / hb walk through those, coming back to the whole block after the
+" last one.
 
 let s:closer = '^\s*\%([\])}]\|</\|/\=>\|end\>\|fi\>\|done\>\|esac\>\)'
 
@@ -866,8 +869,8 @@ function! s:parent_head(lnum) abort
     return l:lnum
 endfunction
 
-" Blocks around {lnum}, innermost first.
-function! s:blocks_around(lnum) abort
+" The innermost block around {lnum}, or [].
+function! s:block_around(lnum) abort
     let l:lnum = s:blank(a:lnum) ? prevnonblank(a:lnum) : a:lnum
     if !l:lnum
         return []
@@ -882,33 +885,45 @@ function! s:blocks_around(lnum) abort
             let l:lnum = l:open
         endif
     endif
-    let l:blocks = []
-    let l:block = s:block_at(l:lnum)
-    let l:head = empty(l:block) ? s:parent_head(l:lnum) : l:lnum
+    let l:head = l:lnum
     while l:head > 0
         let l:block = s:block_at(l:head)
         if !empty(l:block) && l:block[1] >= a:lnum
-            call add(l:blocks, l:block)
+            return l:block
         endif
         let l:head = s:parent_head(l:head)
     endwhile
+    return []
+endfunction
+
+" Every block inside [{first}, {last}], in file order.
+function! s:blocks_inside(first, last) abort
+    let l:blocks = []
+    for l:lnum in range(a:first + 1, a:last)
+        if !s:blank(l:lnum)
+            let l:block = s:block_at(l:lnum)
+            if !empty(l:block) && l:block[1] <= a:last
+                call add(l:blocks, l:block)
+            endif
+        endif
+    endfor
     return l:blocks
 endfunction
 
 function! spotlight#blocks() abort
-    let l:blocks = s:blocks_around(line('.'))
-    if empty(l:blocks)
+    let l:outer = s:block_around(line('.'))
+    if empty(l:outer)
         call s:message('no indented block around the cursor')
         return
     endif
     let l:replace = 1
-    for [l:first, l:last] in l:blocks
+    for [l:first, l:last] in [l:outer] + s:blocks_inside(l:outer[0], l:outer[1])
         call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
         let l:replace = 0
     endfor
-    " Regions were added innermost first: zoom from there.
-    let b:spotlight.zoom = map(copy(b:spotlight.regions), 'v:val.id')
-    let b:spotlight.focus = b:spotlight.zoom[0]
+    " Regions were added outer block first, then the inner ones in order.
+    let b:spotlight.walk = map(copy(b:spotlight.regions), 'v:val.id')
+    let b:spotlight.focus = b:spotlight.walk[0]
     call s:render_buffer(bufnr('%'))
 endfunction
 

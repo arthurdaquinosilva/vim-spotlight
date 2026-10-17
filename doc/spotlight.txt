@@ -95,10 +95,13 @@ until the indentation comes back (blank lines inside don't end it), plus a
 closing line at the same indentation such as }, ), ], </div>, /> or end. On a
 header line (if (x) {) or its closing line, you get that block.
 
-After <leader>hd, <leader>hn zooms out to the enclosing block, one level at
-a time, and <leader>hb zooms back in. The cursor stays where it is. Adding a
-region or switching one off leaves zoom mode, and <leader>hn / <leader>hb go
-back to walking the regions.
+After <leader>hd, <leader>hn steps through every block inside it - each if,
+loop, nested function or tag, nested ones too - in file order, moving the
+cursor there. Past the last one the whole block is lit again; <leader>hb goes
+backwards. With the cursor on a method's name, <leader>hd lights the method
+and <leader>hn walks the blocks inside it. Adding a region or switching one
+off ends the walk, and <leader>hn / <leader>hb go back to walking the
+regions.
 
 <leader>hc or |:SpotlightClear| removes every region. To start over with a
 single region, use <leader>hc first, or |:Spotlight| with a range.
@@ -130,7 +133,7 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 
                                                             *:SpotlightBlocks*
 :SpotlightBlocks        Light the indented block around the cursor; then
-                        zoom out / in with |:SpotlightNext| /
+                        walk the blocks inside it with |:SpotlightNext| /
                         |:SpotlightPrev|.
 
                                              *:SpotlightNext* *:SpotlightPrev*
@@ -178,8 +181,8 @@ NORMAL MODE                                              *spotlight-normal*
 <leader>hb              Same as <leader>hn, going back.
 
 <leader>hd              Light the indented block around the cursor. Then
-                        <leader>hn / <leader>hb zoom out to the enclosing
-                        block and back in (|spotlight-regions|).
+                        <leader>hn / <leader>hb walk through the blocks
+                        inside it (|spotlight-regions|).
 
                         Because of these, <leader>h cannot be followed by the
                         motions n ("to the next match") or b ("a word back").

@@ -1,5 +1,5 @@
 scriptencoding utf-8
-" <leader>hd: the indented block around the cursor, zooming out / in.
+" <leader>hd: the indented block around the cursor, walking the blocks inside.
 
 let s:js = [
     \ 'function load() {',
@@ -35,20 +35,49 @@ function! Test_innermost_block_around_cursor() abort
     call assert_equal([3, 4, 6, 7], s:lit())
 endfunction
 
-function! Test_zoom_out_and_back_in() abort
+function! Test_walk_blocks_inside_and_back() abort
     call SetLines(s:js)
-    call Keys('4G\hd')
+    call Keys('1G\hd')
+    call assert_equal([1, 2, 3, 4, 6, 7, 8, 9], s:lit())
+    " Every block inside, nested ones too, in file order.
     call Keys('\hn')
     call assert_equal([2, 3, 4, 6, 7, 8], s:lit())
+    call assert_equal(2, line('.'))
     call Keys('\hn')
-    call assert_equal([1, 2, 3, 4, 6, 7, 8, 9], s:lit())
-    " Already at the outermost block: nothing changes.
-    call Keys('\hn')
-    call assert_equal([1, 2, 3, 4, 6, 7, 8, 9], s:lit())
-    call Keys('\hb\hb')
     call assert_equal([3, 4, 6, 7], s:lit())
-    " The cursor stays where it was.
-    call assert_equal(4, line('.'))
+    call assert_equal(3, line('.'))
+    " Past the last one: the whole function again.
+    call Keys('\hn')
+    call assert_equal([1, 2, 3, 4, 6, 7, 8, 9], s:lit())
+    " And backwards, wrapping to the last inner block.
+    call Keys('\hb')
+    call assert_equal([3, 4, 6, 7], s:lit())
+endfunction
+
+function! Test_python_method_from_its_name() abort
+    call SetLines([
+        \ 'class Shop:',
+        \ '    def save(self):',
+        \ '        if not self.ok:',
+        \ '            log()',
+        \ '        for x in xs:',
+        \ '            if x:',
+        \ '                use(x)',
+        \ '        with lock:',
+        \ '            flush()',
+        \ '',
+        \ '    def load(self):',
+        \ '        pass',
+        \ ])
+    call Keys('2G0w\hd')
+    call assert_equal([2, 3, 4, 5, 6, 7, 8, 9], s:lit())
+    let l:steps = []
+    for l:i in range(5)
+        call Keys('\hn')
+        call add(l:steps, s:lit())
+    endfor
+    call assert_equal([[3, 4], [5, 6, 7], [6, 7], [8, 9],
+        \ [2, 3, 4, 5, 6, 7, 8, 9]], l:steps)
 endfunction
 
 function! Test_header_and_closing_lines_pick_their_block() abort
@@ -64,7 +93,7 @@ function! Test_indentation_without_closers() abort
         \ '    return c', '', 'g()'])
     call Keys('3G\hd')
     call assert_equal([2, 3, 5], s:lit())
-    call Keys('\hn')
+    call Keys('1G\hd')
     call assert_equal([1, 2, 3, 5, 6], s:lit())
 endfunction
 
@@ -74,9 +103,10 @@ function! Test_no_block_at_top_level_line() abort
     call assert_false(exists('b:spotlight'))
 endfunction
 
-function! Test_adding_a_region_leaves_zoom_mode() abort
+function! Test_adding_a_region_leaves_block_walk() abort
     call SetLines(s:js)
     call Keys('4G\hd')
+    1,9SpotlightAdd
     11SpotlightAdd
     " All regions lit again; n / b walk regions instead of zooming.
     call assert_equal([1, 2, 3, 4, 6, 7, 8, 9, 11], s:lit())
