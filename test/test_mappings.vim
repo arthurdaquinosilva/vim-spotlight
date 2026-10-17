@@ -47,7 +47,7 @@ endfunction
 function! s:load_plugin_fresh() abort
     silent! nunmap <leader>h
     silent! xunmap <leader>h
-    for l:k in ['c', 'x', 'n', 'b']
+    for l:k in ['c', 'x', 'n', 'b', 'd']
         execute 'silent! nunmap <leader>h' . l:k
     endfor
     unlet! g:loaded_spotlight
@@ -77,7 +77,7 @@ function! Test_custom_default_key() abort
         unlet g:spotlight_mapping
         silent! nunmap <leader>s
         silent! xunmap <leader>s
-        for l:k in ['c', 'x', 'n', 'b']
+        for l:k in ['c', 'x', 'n', 'b', 'd']
             execute 'silent! nunmap <leader>s' . l:k
         endfor
         call s:load_plugin_fresh()

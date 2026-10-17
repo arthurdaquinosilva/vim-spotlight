@@ -88,6 +88,13 @@ lights all of them again. <leader>hb goes back the other way. Regions are
 visited in buffer order and the ones switched off are skipped. Adding a
 region or switching one off or on lights all of them again.
 
+<leader>hd turns the file's functions, classes and methods into regions,
+one per scope (a class and each of its methods), replacing any you had. The
+scope under the cursor is lit and <leader>hn / <leader>hb walk through the
+others. The scopes come from coc.nvim's document symbols, so a language
+server must be running for the file; |g:SpotlightScopeProvider| can supply
+them another way.
+
 <leader>hc or |:SpotlightClear| removes every region. To start over with a
 single region, use <leader>hc first, or |:Spotlight| with a range.
 
@@ -115,6 +122,10 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 
                                                       *:SpotlightToggleRegion*
 :SpotlightToggleRegion  Switch the region under the cursor off or on.
+
+                                                            *:SpotlightScopes*
+:SpotlightScopes        Make regions of the file's functions, classes and
+                        methods and light the one under the cursor.
 
                                              *:SpotlightNext* *:SpotlightPrev*
 :SpotlightNext          Light only the next region; past the last one, light
@@ -160,6 +171,10 @@ NORMAL MODE                                              *spotlight-normal*
 
 <leader>hb              Same as <leader>hn, going back.
 
+<leader>hd              Make regions of the file's functions, classes and
+                        methods (|spotlight-regions|) and light the one
+                        under the cursor.
+
                         Because of these, <leader>h cannot be followed by the
                         motions n ("to the next match") or b ("a word back").
 
@@ -199,6 +214,7 @@ These are always defined, whatever the default-mapping settings:
                                   cursor off or on.
     <Plug>(SpotlightNext)         Normal mode: focus the next region.
     <Plug>(SpotlightPrev)         Normal mode: focus the previous region.
+    <Plug>(SpotlightScopes)       Normal mode: regions from the scopes.
 
 One region at a time, as in 1.x:
 
@@ -233,10 +249,12 @@ g:spotlight_mapping     Default: '<leader>h'
                                                 *g:spotlight_toggle_mapping*
                                                   *g:spotlight_next_mapping*
                                                   *g:spotlight_prev_mapping*
+                                                *g:spotlight_scopes_mapping*
 g:spotlight_clear_mapping       Default: |g:spotlight_mapping| followed by c
 g:spotlight_toggle_mapping      Default: |g:spotlight_mapping| followed by x
 g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
 g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
+g:spotlight_scopes_mapping      Default: |g:spotlight_mapping| followed by d
                         Keys that clear every region, switch the region
                         under the cursor off or on, and focus the next and
                         previous region. Set one to '' to leave it unmapped.
@@ -247,6 +265,16 @@ g:spotlight_no_default_mappings
                         Set to 1 to define no default mappings. Map your own
                         keys to the |spotlight-plug| targets.
 
+                                                  *g:SpotlightScopeProvider*
+g:SpotlightScopeProvider
+                        Default: unset (coc.nvim's document symbols)
+                        A |Funcref| that returns the scopes for <leader>hd
+                        in the current buffer as [first line, last line]
+                        pairs, for example from another language client:
+>
+                            let g:SpotlightScopeProvider =
+                                  \ {-> [[1, 9], [2, 4], [11, 13]]}
+<
                                                   *g:spotlight_priority*
 g:spotlight_priority    Default: 100
                         Priority of the dimming matches (see |matchadd()|).

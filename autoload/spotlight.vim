@@ -801,6 +801,72 @@ function! spotlight#focus(step) abort
     call s:render_buffer(bufnr('%'))
 endfunction
 
+" ── Scopes ───────────────────────────────────────────────────────────────────
+"
+" <leader>hd turns the file's functions, classes and methods into regions:
+" one per scope (a class and each of its methods), focused on the scope under
+" the cursor so <leader>hn / hb walk through them. Scopes come from
+" g:SpotlightScopeProvider when set (a Funcref returning [[first, last],
+" ...] line pairs), otherwise from coc.nvim's document symbols.
+
+let s:scope_kinds = ['Class', 'Interface', 'Struct', 'Enum', 'Module',
+    \ 'Namespace', 'Function', 'Method', 'Constructor']
+
+function! s:coc_scopes() abort
+    if !exists('*CocAction') || !get(g:, 'coc_service_initialized', 0)
+        return []
+    endif
+    try
+        let l:symbols = CocAction('documentSymbols')
+    catch
+        return []
+    endtry
+    let l:scopes = []
+    for l:symbol in type(l:symbols) == type([]) ? l:symbols : []
+        if type(l:symbol) == type({})
+            \ && index(s:scope_kinds, get(l:symbol, 'kind', '')) >= 0
+            \ && has_key(l:symbol, 'range')
+            call add(l:scopes, [l:symbol.range.start.line + 1,
+                \ l:symbol.range.end.line + 1])
+        endif
+    endfor
+    return l:scopes
+endfunction
+
+function! s:find_scopes() abort
+    let l:Provider = get(g:, 'SpotlightScopeProvider', '')
+    let l:scopes = empty(l:Provider) ? s:coc_scopes() : call(l:Provider, [])
+    let l:last = line('$')
+    call filter(l:scopes, 'type(v:val) == type([]) && len(v:val) == 2'
+        \ . ' && v:val[0] >= 1 && v:val[0] <= v:val[1] && v:val[1] <= l:last')
+    return uniq(sort(l:scopes, {a, b -> a[0] != b[0] ? a[0] - b[0] : b[1] - a[1]}))
+endfunction
+
+function! spotlight#scopes() abort
+    let l:scopes = s:find_scopes()
+    if empty(l:scopes)
+        call s:message('no functions, classes or methods found'
+            \ . ' (needs coc.nvim, or g:SpotlightScopeProvider)')
+        return
+    endif
+    let l:replace = 1
+    for [l:first, l:last] in l:scopes
+        call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
+        let l:replace = 0
+    endfor
+    " Focus the innermost scope under the cursor, or else the next one below.
+    let l:lnum = line('.')
+    let l:regions = sort(copy(b:spotlight.regions), function('s:by_position'))
+    let l:here = filter(copy(l:regions),
+        \ 'v:val.pos[0] <= l:lnum && l:lnum <= v:val.pos[2]')
+    let l:below = filter(copy(l:regions), 'v:val.pos[0] > l:lnum')
+    let l:pick = !empty(l:here)
+        \ ? sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
+        \ : (!empty(l:below) ? l:below[0] : l:regions[0])
+    let b:spotlight.focus = l:pick.id
+    call s:render_buffer(bufnr('%'))
+endfunction
+
 function! spotlight#clear() abort
     let l:bufnr = bufnr('%')
     call s:anchor_clear(l:bufnr)
