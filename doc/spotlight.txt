@@ -107,10 +107,10 @@ After <leader>hd, <leader>hn steps through everything inside it - each chunk,
 if, loop, nested function or tag, nested ones too - in file order, moving the
 cursor there. Past the last one the whole block is lit again; <leader>hb goes
 backwards. On a chunk with nothing inside, <leader>hn / <leader>hb step to
-the chunks and blocks around it instead. With the cursor on a method's name, <leader>hd lights the method
-and <leader>hn walks the blocks inside it. Adding a region or switching one
-off ends the walk, and <leader>hn / <leader>hb go back to walking the
-regions.
+the chunks and blocks around it instead. With the cursor on a method's
+name, <leader>hd lights the method and <leader>hn walks the blocks inside
+it. Adding a region or switching one off ends the walk, and <leader>hn /
+<leader>hb go back to walking the regions.
 
 <leader>hm turns on follow mode: from then on the block around the cursor
 (as <leader>hd finds it) is lit automatically wherever you move, including
