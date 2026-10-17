@@ -123,3 +123,28 @@ function! Test_jsx_self_closing_tag_keeps_its_closer() abort
     call Keys('3G\hd')
     call assert_equal([2, 3, 4], s:lit())
 endfunction
+
+function! Test_block_grows_with_line_added_after_its_end() abort
+    " Python blocks have no closing line, so a line opened below the last
+    " one is only part of the block by indentation.
+    call RequireTracking()
+    call SetLines(['def f():', '    if ok:', '        a', '        b',
+        \ '    return 1'])
+    setlocal autoindent
+    call Keys('3G\hd')
+    call Keys("4Goc\<Esc>")
+    call assert_equal([2, 3, 4, 5], s:lit())
+    " Dedenting it again takes it back out.
+    call Keys('5G<<')
+    call assert_equal([2, 3, 4], s:lit())
+endfunction
+
+function! Test_manual_region_does_not_grow() abort
+    call RequireTracking()
+    call SetLines(['def f():', '    if ok:', '        a', '        b',
+        \ '    return 1'])
+    setlocal autoindent
+    2,4Spotlight
+    call Keys("4Goc\<Esc>")
+    call assert_equal([2, 3, 4], s:lit())
+endfunction

@@ -920,6 +920,8 @@ function! spotlight#blocks() abort
     for [l:first, l:last] in [l:outer] + s:blocks_inside(l:outer[0], l:outer[1])
         call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
         let l:replace = 0
+        " Remember it is a block, so edits re-measure where it ends.
+        let b:spotlight.regions[-1].block_indent = indent(l:first)
     endfor
     " Regions were added outer block first, then the inner ones in order.
     let b:spotlight.walk = map(copy(b:spotlight.regions), 'v:val.id')
@@ -1060,11 +1062,31 @@ function! spotlight#refresh(...) abort
             endif
         endif
         let l:region.pos = l:pos
+        if has_key(l:region, 'block_indent') && bufnr('%') == l:bufnr
+            call s:remeasure_block(l:bufnr, l:region)
+        endif
         call add(l:kept, l:region)
     endfor
     let l:state.regions = l:kept
     let l:state.lines = l:last
     call s:render_buffer(l:bufnr)
+endfunction
+
+" A region made by <leader>hd: while its first line is still the block's
+" header (same indentation), take its end from the indentation again, so a
+" line added after the last one (no closing brace in Python) is included.
+function! s:remeasure_block(bufnr, region) abort
+    let l:first = a:region.pos[0]
+    if indent(l:first) != a:region.block_indent
+        return
+    endif
+    let l:block = s:block_at(l:first)
+    if empty(l:block) || l:block[1] == a:region.pos[2]
+        return
+    endif
+    let a:region.pos = [l:first, 1, l:block[1], len(getline(l:block[1])) + 1]
+    call s:anchor_del(a:bufnr, a:region)
+    let a:region.anchor = s:anchor_set(a:bufnr, a:region)
 endfunction
 
 " BufWinEnter / WinEnter: bring the current window in line with its buffer

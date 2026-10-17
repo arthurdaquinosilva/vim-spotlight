@@ -93,7 +93,9 @@ any regions you had. Blocks are found by indentation, so this works in any
 file: a line followed by more-indented lines starts a block, which runs
 until the indentation comes back (blank lines inside don't end it), plus a
 closing line at the same indentation such as }, ), ], </div>, /> or end. On a
-header line (if (x) {) or its closing line, you get that block.
+header line (if (x) {) or its closing line, you get that block. As you edit,
+these blocks keep their extent by indentation too: a line added after the
+last one of a Python block, at the block's indentation, becomes part of it.
 
 After <leader>hd, <leader>hn steps through every block inside it - each if,
 loop, nested function or tag, nested ones too - in file order, moving the
