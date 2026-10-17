@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-17
+
 ### Added
 
 - `<leader>hd` (`:SpotlightBlocks`): light the indented block of code around the cursor (with its closing `}` / `</tag>` line), found by indentation in any language. Chunks of lines between blank lines count as blocks too. Then `<leader>hn` / `<leader>hb` walk through every block inside it (nested ones too), wrapping back to the whole block. Blocks lit this way keep following the indentation as you edit (a line added after the last line of a Python block joins it). Option `g:spotlight_blocks_mapping`.
@@ -75,7 +77,8 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.0...v1.0.1
