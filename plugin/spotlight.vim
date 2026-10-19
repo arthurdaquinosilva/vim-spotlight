@@ -25,8 +25,8 @@ set cpoptions&vim
 " touched.
 
 let s:defaults = {
-    \ 'dark':  {'cterm': '236', 'gui': '#282828'},
-    \ 'light': {'cterm': '253', 'gui': '#dadada'},
+    \ 'dark':  {'cterm': '235', 'gui': '#262626'},
+    \ 'light': {'cterm': '254', 'gui': '#e4e4e4'},
     \ }
 let s:applied = {}
 

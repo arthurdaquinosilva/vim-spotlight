@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-10-19
+
+### Changed
+
+- Dimmed text is a step closer to the background by default: `ctermfg=235 guifg=#262626` on dark backgrounds (was `236` / `#282828`) and `ctermfg=254 guifg=#e4e4e4` on light ones (was `253` / `#dadada`). Colors you set yourself are unaffected.
+
 ## [2.1.0] - 2026-10-17
 
 ### Added
@@ -77,7 +83,8 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.0.1...v1.1.0
