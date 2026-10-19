@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-10-19
+
+### Changed
+
+- Dimmed text is now barely visible by default: `ctermfg=234 guifg=#1c1c1c` on dark backgrounds (was `235` / `#262626`) and `ctermfg=255 guifg=#eeeeee` on light ones (was `254` / `#e4e4e4`). If it disappears completely on your background, set your own color (`:help hl-SpotlightDim`).
+
 ## [2.1.1] - 2026-10-19
 
 ### Changed
@@ -83,7 +89,8 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.2...HEAD
+[2.1.2]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v1.1.0...v2.0.0

@@ -358,8 +358,8 @@ g:spotlight_suppress_cursor_events
 SpotlightDim            The highlight used for dimmed text.
 
                         Defaults, chosen from 'background':
-                            dark:   ctermfg=235 guifg=#262626
-                            light:  ctermfg=254 guifg=#e4e4e4
+                            dark:   ctermfg=234 guifg=#1c1c1c
+                            light:  ctermfg=255 guifg=#eeeeee
 
                         It is defined with |:highlight-default|, so your
                         colorscheme or vimrc wins:

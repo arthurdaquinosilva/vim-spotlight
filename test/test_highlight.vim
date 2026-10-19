@@ -15,11 +15,11 @@ endfunction
 
 function! Test_dark_and_light_defaults() abort
     call s:set_bg('dark')
-    call assert_equal(['235', '#262626'], s:fg())
+    call assert_equal(['234', '#1c1c1c'], s:fg())
     call s:set_bg('light')
-    call assert_equal(['254', '#e4e4e4'], s:fg())
+    call assert_equal(['255', '#eeeeee'], s:fg())
     call s:set_bg('dark')
-    call assert_equal(['235', '#262626'], s:fg())
+    call assert_equal(['234', '#1c1c1c'], s:fg())
 endfunction
 
 function! Test_user_colors_survive_background_change() abort
@@ -49,5 +49,5 @@ endfunction
 function! Test_reapplied_after_colorscheme_clears_it() abort
     highlight clear SpotlightDim
     doautocmd <nomodeline> ColorScheme
-    call assert_equal(['235', '#262626'], s:fg())
+    call assert_equal(['234', '#1c1c1c'], s:fg())
 endfunction
