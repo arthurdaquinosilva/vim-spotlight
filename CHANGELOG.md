@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Fixed
+
+- `<leader>hd` no longer freezes Vim in long files: lighting a block with hundreds of blocks and chunks inside it (or around it, at the top level) took seconds to over a minute, and now takes a fraction of a second.
+- `<leader>hn` / `<leader>hb` no longer fail with E684 after a block in the walk had all of its text deleted; the walk carries on without it.
+- No more E964 (Vim) or E5555 (Neovim) after a file reloaded with `:edit!` came back shorter, or after deleting the whole buffer, while a region was lit.
+- `spotlight#lines()` and `spotlight#add_lines()` accept a range past the last line instead of failing.
+
 ## [2.1.2] - 2026-10-19
 
 ### Changed

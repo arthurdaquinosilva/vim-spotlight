@@ -111,6 +111,21 @@ function! Test_no_block_at_top_level_line() abort
     call assert_false(exists('b:spotlight'))
 endfunction
 
+function! Test_walk_goes_on_after_a_walked_block_is_deleted() abort
+    call RequireDeletionTracking()
+    call SetLines(['function f() {', '  a()', '', '  b()', '', '  c()', '}'])
+    call Keys('1G\hd\hn\hn')
+    call assert_equal([4], s:lit())
+    " Deleting the focused chunk keeps the walk going, from the start.
+    call Keys('4Gdd')
+    call Keys('\hn')
+    call assert_equal([1, 2, 5, 6], s:lit())
+    call Keys('\hn')
+    call assert_equal([2], s:lit())
+    call Keys('\hn')
+    call assert_equal([5], s:lit())
+endfunction
+
 function! Test_adding_a_region_leaves_block_walk() abort
     call SetLines(s:js)
     call Keys('4G\hd')

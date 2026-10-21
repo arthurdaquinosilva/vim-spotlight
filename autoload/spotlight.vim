@@ -540,8 +540,10 @@ augroup spotlight_buffer
 augroup END
 
 " Add a region to the current buffer, or with {replace} make it the only one.
-function! s:activate(mode, pos, vcols, replace) abort
+" With a fifth argument of 0 the windows are not redrawn (the caller does).
+function! s:activate(mode, pos, vcols, replace, ...) abort
     let [l:sl, l:sc, l:el, l:ec] = a:pos
+    let l:el = min([l:el, line('$')])
     if l:sl < 1 || l:el < l:sl
         return
     endif
@@ -550,6 +552,9 @@ function! s:activate(mode, pos, vcols, replace) abort
         " Line and block regions track whole lines.
         let l:sc = 1
         let l:ec = len(getline(l:el)) + 1
+    else
+        let l:sc = min([l:sc, len(getline(l:sl)) + 1])
+        let l:ec = min([l:ec, len(getline(l:el)) + 1])
     endif
 
     if a:replace || !exists('b:spotlight')
@@ -577,7 +582,9 @@ function! s:activate(mode, pos, vcols, replace) abort
     execute 'autocmd spotlight_buffer ' . l:events . ' <buffer=' . l:bufnr
         \ . '> call spotlight#refresh(' . l:bufnr . ')'
 
-    call s:render_buffer(l:bufnr)
+    if !a:0 || a:1
+        call s:render_buffer(l:bufnr)
+    endif
 endfunction
 
 function! s:add_lines(line1, line2, replace) abort
@@ -793,11 +800,13 @@ function! spotlight#focus(step) abort
         let l:state = b:spotlight
     endif
     " After <leader>hd: walk the blocks inside the outer one, wrapping round
-    " to the whole outer block.
+    " to the whole outer block. Focus 0 during a walk means the focused block
+    " was deleted: carry on from the start (or the end, going back).
     let l:walk = get(l:state, 'walk', [])
-    if index(l:walk, get(l:state, 'focus', 0)) >= 0
-        let l:at = (index(l:walk, l:state.focus) + a:step + len(l:walk))
-            \ % len(l:walk)
+    let l:focus = get(l:state, 'focus', 0)
+    if !empty(l:walk) && (l:focus == 0 || index(l:walk, l:focus) >= 0)
+        let l:at = l:focus == 0 && a:step < 0 ? len(l:walk) - 1
+            \ : (index(l:walk, l:focus) + a:step + len(l:walk)) % len(l:walk)
         let l:state.focus = l:walk[l:at]
         let l:region = filter(copy(l:state.regions),
             \ 'v:val.id == l:state.focus')[0]
@@ -1050,8 +1059,10 @@ function! s:start_walk(outer) abort
         endif
     endif
     let l:replace = 1
+    " Drawn once at the end: redrawing after each block is far too slow when
+    " a long file has hundreds of them.
     for [l:first, l:last] in l:list
-        call s:activate('line', [l:first, 1, l:last, 1], [], l:replace)
+        call s:activate('line', [l:first, 1, l:last, 1], [], l:replace, 0)
         let l:replace = 0
         " An indented block re-measures where it ends as you edit.
         if s:block_at(l:first) == [l:first, l:last]
@@ -1191,12 +1202,19 @@ function! spotlight#refresh(...) abort
             if l:state.focus == l:region.id
                 let l:state.focus = 0
             endif
+            call filter(get(l:state, 'walk', []), 'v:val != l:region.id')
             continue
         endif
         if empty(l:pos)
             let [l:sl, l:sc, l:el, l:ec] = l:region.pos
             let l:el = min([max([l:el, 1]), l:last])
             let l:sl = min([max([l:sl, 1]), l:el])
+            " The lines may be shorter now: keep the columns on them.
+            let l:len_sl = len(get(getbufline(l:bufnr, l:sl), 0, ''))
+            let l:len_el = len(get(getbufline(l:bufnr, l:el), 0, ''))
+            let l:sc = min([l:sc, l:len_sl + 1])
+            let l:ec = l:region.mode ==# 'char'
+                \ ? min([l:ec, l:len_el + 1]) : l:len_el + 1
             let l:pos = [l:sl, l:sc, l:el, l:ec]
             if get(l:region, 'anchor', 0) && bufnr('%') == l:bufnr
                 call s:anchor_del(l:bufnr, l:region)

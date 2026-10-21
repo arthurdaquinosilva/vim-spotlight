@@ -115,6 +115,26 @@ function! Test_lost_anchor_falls_back_to_last_position() abort
     call assert_equal(['___', 'TWO', 'THREE', '____'], Screen())
 endfunction
 
+function! Test_lost_anchor_keeps_columns_on_shorter_lines() abort
+    if has('nvim') && !has('nvim-0.10')
+        throw 'Skipped: extmark invalidation needs Neovim 0.10'
+    endif
+    call SetLines(['short', 'a much longer line'])
+    call Keys('2G$\hiw')
+    silent %delete _
+    call setline(1, 'x')
+    " Re-anchoring past the end of the shorter line used to throw.
+    call spotlight#refresh()
+    call Keys("Ayz\<Esc>")
+    call assert_equal(1, len(Screen()))
+endfunction
+
+function! Test_range_past_the_end_is_clamped() abort
+    call SetLines(['a', 'b'])
+    call spotlight#lines(2, 10)
+    call assert_equal(['_', 'b'], Screen())
+endfunction
+
 function! Test_line_opened_below_region_is_outside() abort
     call RequireTracking()
     call SetLines(['one', 'two', 'three'])
