@@ -54,6 +54,8 @@ let s:hidden_match = {}
 let s:sweep_timer = -1
 let s:sweep_interval = 100
 let s:sweep_count = 50
+let s:cursor_timer = -1
+let s:cursor_seen = ''
 let s:hls_hidden = 0
 let s:hls_saved = 0
 " Match groups of cursor-driven highlights: coc.nvim's document highlight and
@@ -438,6 +440,11 @@ endfunction
 " whenever the language server replies (up to its documentHighlight.timeout,
 " 5s at most), so a reply can land after the spotlight went on. For that long
 " the spotlighted windows are swept again every 100ms.
+"
+" Popups that close when the cursor moves (coc.nvim's hover on K, signature
+" help, diagnostics) would stay open too. So a timer watches the cursor, and
+" when it moves while a popup or floating window is open, CursorMoved is
+" fired once to let them close; the highlights it redraws are hidden again.
 
 function! s:hide_cursor_highlights() abort
     for l:winid in win_findbuf(bufnr('%'))
@@ -475,6 +482,64 @@ function! s:on_sweep(timer) abort
     endif
 endfunction
 
+" True when a popup (Vim) or floating window (Neovim) is open.
+function! s:popup_open() abort
+    if s:has_nvim
+        return !empty(filter(nvim_list_wins(),
+            \ 'nvim_win_get_config(v:val).relative !=# ""'))
+    endif
+    return exists('*popup_list') && !empty(popup_list())
+endfunction
+
+function! s:cursor_key() abort
+    return win_getid() . ':' . line('.') . ':' . col('.')
+endfunction
+
+function! s:start_cursor_watch() abort
+    call s:stop_cursor_watch()
+    let s:cursor_seen = s:cursor_key()
+    if exists('*timer_start')
+        let s:cursor_timer = timer_start(s:sweep_interval,
+            \ function('s:on_cursor_watch'), {'repeat': -1})
+    endif
+endfunction
+
+function! s:stop_cursor_watch() abort
+    if s:cursor_timer != -1
+        call timer_stop(s:cursor_timer)
+        let s:cursor_timer = -1
+    endif
+endfunction
+
+function! s:on_cursor_watch(timer) abort
+    if !s:suppressing
+        call s:stop_cursor_watch()
+        return
+    endif
+    let l:key = s:cursor_key()
+    if l:key ==# s:cursor_seen || mode() ==# 'c'
+        return
+    endif
+    let s:cursor_seen = l:key
+    if !s:popup_open()
+        return
+    endif
+    " Lift only our events, for this one autocmd.
+    let l:ei = &eventignore
+    let &eventignore = join(filter(split(l:ei, ','),
+        \ 'index(s:ei_added, v:val) < 0'), ',')
+    try
+        let l:event = mode() =~# '^[iR]' ? 'CursorMovedI' : 'CursorMoved'
+        if exists('#' . l:event)
+            execute 'silent doautocmd <nomodeline>' l:event
+        endif
+    finally
+        let &eventignore = l:ei
+    endtry
+    call s:hide_cursor_highlights()
+    call s:sweep_late_highlights()
+endfunction
+
 function! s:restore_cursor_highlights() abort
     for [l:winid, l:m] in items(s:hidden_match)
         let l:matches = getmatches(l:winid)
@@ -503,11 +568,13 @@ function! s:update_suppression() abort
             \ 'index(l:current, v:val) < 0 && index(l:current, "all") < 0')
         let &eventignore = join(l:current + s:ei_added, ',')
         call s:sweep_late_highlights()
+        call s:start_cursor_watch()
     else
         let &eventignore = join(filter(l:current,
             \ 'index(s:ei_added, v:val) < 0'), ',')
         let s:ei_added = []
         call s:stop_sweep()
+        call s:stop_cursor_watch()
         call s:restore_cursor_highlights()
     endif
 endfunction

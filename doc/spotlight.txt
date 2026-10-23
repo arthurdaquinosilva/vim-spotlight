@@ -346,6 +346,12 @@ g:spotlight_suppress_cursor_events
                         The |:match| is put back afterwards, and
                         |CursorMoved| is fired once so the others update.
 
+                        Popups that close when the cursor moves (such as
+                        coc.nvim's hover on K) keep working: when the
+                        cursor moves while a popup or floating window is
+                        open, |CursorMoved| is fired once so it can close,
+                        and the highlights it redraws are hidden again.
+
                         This is global: while it is in effect no plugin sees
                         these events, and |matchparen| stops updating. Only
                         the events the plugin added are removed again, so

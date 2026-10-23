@@ -139,6 +139,55 @@ function! Test_suppression_removes_coc_highlight_arriving_late() abort
     call assert_equal([], filter(getmatches(), 'v:val.group =~# "^CocHighlight"'))
 endfunction
 
+" A popup closed on CursorMoved, like coc.nvim's hover on K.
+function! s:open_popup() abort
+    if has('nvim')
+        let s:popup = nvim_open_win(nvim_create_buf(0, 1), 0, {'relative':
+            \ 'cursor', 'row': 1, 'col': 0, 'width': 5, 'height': 1})
+    else
+        let s:popup = popup_create('doc', {'line': 'cursor+1', 'col': 'cursor'})
+    endif
+    augroup spotlight_test_popup
+        autocmd!
+        autocmd CursorMoved * call s:close_popup()
+    augroup END
+endfunction
+
+function! s:close_popup() abort
+    if has('nvim')
+        silent! call nvim_win_close(s:popup, 1)
+    else
+        call popup_close(s:popup)
+    endif
+endfunction
+
+function! s:popup_count() abort
+    return has('nvim') ? len(filter(nvim_list_wins(),
+        \ 'nvim_win_get_config(v:val).relative !=# ""')) : len(popup_list())
+endfunction
+
+function! Test_suppression_lets_popups_close_when_the_cursor_moves() abort
+    if !exists('*timer_start') || (!has('nvim') && !exists('*popup_list'))
+        throw 'Skipped: needs +timers and popups'
+    endif
+    let g:spotlight_suppress_cursor_events = 1
+    call SetLines(['one', 'two', 'three'])
+    try
+        1,3Spotlight
+        call s:open_popup()
+        sleep 250m
+        call assert_equal(1, s:popup_count())
+        call cursor(2, 1)
+        sleep 250m
+        call assert_equal(0, s:popup_count())
+        " Still suppressing: the events are ignored again.
+        call assert_match('CursorMoved', &eventignore)
+    finally
+        autocmd! spotlight_test_popup
+        call s:close_popup()
+    endtry
+endfunction
+
 function! Test_sweep_stops_when_spotlight_cleared() abort
     if !exists('*timer_start')
         throw 'Skipped: needs +timers'
