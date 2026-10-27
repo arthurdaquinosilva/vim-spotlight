@@ -5,10 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed
+
+- `<leader>hn` / `<leader>hb` now visit regions switched off with `<leader>hx` too, instead of skipping them: select a region, park it with `<leader>hx`, select another, and cycle between them.
+
+### Removed
+
+- `<leader>hd` (`:SpotlightBlocks`, `<Plug>(SpotlightBlocks)`, `g:spotlight_blocks_mapping`) and its walk through the blocks inside the lit one. Follow mode (`<leader>hm`) stays, without the `<leader>hn` / `<leader>hb` block walk.
+
 ### Fixed
 
-- `<leader>hd` no longer freezes Vim in long files: lighting a block with hundreds of blocks and chunks inside it (or around it, at the top level) took seconds to over a minute, and now takes a fraction of a second.
-- `<leader>hn` / `<leader>hb` no longer fail with E684 after a block in the walk had all of its text deleted; the walk carries on without it.
 - No more E964 (Vim) or E5555 (Neovim) after a file reloaded with `:edit!` came back shorter, or after deleting the whole buffer, while a region was lit.
 - `spotlight#lines()` and `spotlight#add_lines()` accept a range past the last line instead of failing.
 - With `g:spotlight_suppress_cursor_events`, popups that close when the cursor moves (coc.nvim's hover on `K`, signature help, diagnostics) now close again instead of staying open until the spotlight is cleared.

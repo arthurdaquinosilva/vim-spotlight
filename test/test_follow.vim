@@ -114,46 +114,15 @@ let s:two = [
     \ '            return parse(data)',
     \ ]
 
-function! Test_follow_walks_blocks_inside_with_n_and_b() abort
-    call s:require_timers()
-    call SetLines(s:two)
-    try
-        call Keys('2G\hm')
-        call assert_equal([2, 3, 4, 5, 6], s:lit())
-        call Keys('\hn')
-        call s:settle()
-        call assert_equal([3, 4], s:lit())
-        call Keys('\hn')
-        call s:settle()
-        call assert_equal([5, 6], s:lit())
-        call Keys('\hn')
-        call s:settle()
-        call assert_equal([2, 3, 4, 5, 6], s:lit())
-        call Keys('\hb')
-        call s:settle()
-        call assert_equal([5, 6], s:lit())
-    finally
-        SpotlightClear
-    endtry
-endfunction
-
-function! Test_follow_search_jump_then_walk_there() abort
+function! Test_follow_search_jump_lights_block_there() abort
     call s:require_timers()
     call SetLines(s:two)
     try
         call Keys('3G\hm')
-        " Jump to the other method, like / does: follow lights it...
+        " Jump to the other method, like / does: follow lights it.
         call Keys("/def load\<CR>")
         call s:settle()
         call assert_equal([8, 9, 10, 11, 12], s:lit())
-        " ... and n walks the blocks inside it.
-        call Keys('\hn')
-        call s:settle()
-        call assert_equal([9, 10], s:lit())
-        call Keys('\hn')
-        call s:settle()
-        call assert_equal([11, 12], s:lit())
-        " Moving by hand goes back to following the cursor.
         call cursor(4, 1)
         call s:settle()
         call assert_equal([3, 4], s:lit())

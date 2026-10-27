@@ -85,43 +85,24 @@ off, nothing is dimmed.
 <leader>hn lights only the next region and moves the cursor to it, pressing
 it again moves on to the one after it, and stepping past the last region
 lights all of them again. <leader>hb goes back the other way. Regions are
-visited in buffer order and the ones switched off are skipped. Adding a
-region or switching one off or on lights all of them again.
+visited in buffer order, including the ones switched off: select a region,
+park it with <leader>hx, select another, and <leader>hn / <leader>hb cycle
+between them. Adding a region or switching one off or on lights all of the
+enabled ones again.
 
-<leader>hd lights the innermost block of code around the cursor, replacing
-any regions you had. Blocks are found by indentation, so this works in any
-file: a line followed by more-indented lines starts a block, which runs
-until the indentation comes back (blank lines inside don't end it), plus a
-closing line at the same indentation such as }, ), ], </div>, /> or end. On a
-header line (if (x) {) or its closing line, you get that block.
-
-Inside a block, groups of lines separated by blank lines (chunks, typically
-a comment and the code under it) count as blocks too, together with any
-if / while they contain. With the cursor on such a line you get its chunk;
-when a body has no blank lines, the enclosing block. Top-level code is split
-into chunks the same way. As you edit,
-these blocks keep their extent by indentation too: a line added after the
-last one of a Python block, at the block's indentation, becomes part of it.
-
-After <leader>hd, <leader>hn steps through everything inside it - each chunk,
-if, loop, nested function or tag, nested ones too - in file order, moving the
-cursor there. Past the last one the whole block is lit again; <leader>hb goes
-backwards. On a chunk with nothing inside, <leader>hn / <leader>hb step to
-the chunks and blocks around it instead. With the cursor on a method's
-name, <leader>hd lights the method and <leader>hn walks the blocks inside
-it. Adding a region or switching one off ends the walk, and <leader>hn /
-<leader>hb go back to walking the regions.
-
-<leader>hm turns on follow mode: from then on the block around the cursor
-(as <leader>hd finds it) is lit automatically wherever you move, including
-while you type. On a top-level line outside any block nothing is dimmed.
+<leader>hm turns on follow mode: from then on the innermost block of code
+around the cursor is lit automatically wherever you move, including while
+you type. Blocks are found by indentation, so this works in any file: a
+line followed by more-indented lines starts a block, which runs until the
+indentation comes back (blank lines inside don't end it), plus a closing
+line at the same indentation such as }, ), ], </div>, /> or end. Inside a
+block, groups of lines separated by blank lines (chunks, typically a comment
+and the code under it) count as blocks too. On a top-level line outside any
+block nothing is dimmed.
 <leader>hm again, or <leader>hc, turns it off. Follow mode is per buffer and
 keeps working with |g:spotlight_suppress_cursor_events|, because it checks
 the cursor with a short timer instead of cursor events (needs |+timers|).
-While it is on, the block under the cursor replaces any other region, and
-<leader>hn / <leader>hb walk the blocks inside the lit block, as after
-<leader>hd. Moving the cursor yourself (j, /, G, ...) goes back to lighting
-the block under it.
+While it is on, the block under the cursor replaces any other region.
 
 <leader>hc or |:SpotlightClear| removes every region. To start over with a
 single region, use <leader>hc first, or |:Spotlight| with a range.
@@ -150,11 +131,6 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 
                                                       *:SpotlightToggleRegion*
 :SpotlightToggleRegion  Switch the region under the cursor off or on.
-
-                                                            *:SpotlightBlocks*
-:SpotlightBlocks        Light the indented block around the cursor; then
-                        walk the blocks inside it with |:SpotlightNext| /
-                        |:SpotlightPrev|.
 
                                                             *:SpotlightFollow*
 :SpotlightFollow        Turn follow mode on or off: keep lighting the block
@@ -207,10 +183,6 @@ NORMAL MODE                                              *spotlight-normal*
 <leader>hm              Turn follow mode on or off: the block around the
                         cursor is lit automatically as you move.
 
-<leader>hd              Light the indented block around the cursor. Then
-                        <leader>hn / <leader>hb walk through the blocks
-                        inside it (|spotlight-regions|).
-
                         Because of these, <leader>h cannot be followed by the
                         motions n ("to the next match") or b ("a word back").
 
@@ -250,7 +222,6 @@ These are always defined, whatever the default-mapping settings:
                                   cursor off or on.
     <Plug>(SpotlightNext)         Normal mode: focus the next region.
     <Plug>(SpotlightPrev)         Normal mode: focus the previous region.
-    <Plug>(SpotlightBlocks)       Normal mode: the block around the cursor.
     <Plug>(SpotlightFollow)       Normal mode: follow mode on / off.
 
 One region at a time, as in 1.x:
@@ -286,13 +257,11 @@ g:spotlight_mapping     Default: '<leader>h'
                                                 *g:spotlight_toggle_mapping*
                                                   *g:spotlight_next_mapping*
                                                   *g:spotlight_prev_mapping*
-                                                *g:spotlight_blocks_mapping*
                                                 *g:spotlight_follow_mapping*
 g:spotlight_clear_mapping       Default: |g:spotlight_mapping| followed by c
 g:spotlight_toggle_mapping      Default: |g:spotlight_mapping| followed by x
 g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
 g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
-g:spotlight_blocks_mapping      Default: |g:spotlight_mapping| followed by d
 g:spotlight_follow_mapping      Default: |g:spotlight_mapping| followed by m
                         Keys that clear every region, switch the region
                         under the cursor off or on, and focus the next and

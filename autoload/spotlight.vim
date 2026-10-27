@@ -14,7 +14,6 @@ set cpoptions&vim
 "   regions  list of regions, in the order they were added
 "   focus    0 to light every enabled region, or the id of the one region
 "            lit on its own (<leader>hn / <leader>hb)
-"   walk     after <leader>hd: region ids of the block and the blocks inside
 "   lines    buffer line count when the regions were last updated
 "   next_id  id for the next region
 "
@@ -640,7 +639,6 @@ function! s:activate(mode, pos, vcols, replace, ...) abort
     let b:spotlight.lines = line('$')
     " A new region is meant to be seen: show everything again.
     let b:spotlight.focus = 0
-    let b:spotlight.walk = []
     call add(b:spotlight.regions, l:region)
 
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
@@ -846,46 +844,17 @@ function! spotlight#toggle_region() abort
     let l:region = sort(l:here, {a, b -> s:size(a) - s:size(b)})[0]
     let l:region.enabled = !l:region.enabled
     let l:state.focus = 0
-    let l:state.walk = []
     call s:render_buffer(bufnr('%'))
 endfunction
 
-" Light only the next ({step} = 1) or previous ({step} = -1) enabled region,
-" moving the cursor to it. Stepping past the last (or first) region lights
-" all of them again.
+" Light only the next ({step} = 1) or previous ({step} = -1) region, moving
+" the cursor to it. Regions switched off are visited too, so you can park
+" some with <leader>hx and still step to them. Stepping past the last (or
+" first) region lights every enabled one again.
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})
-    " In follow mode, walk the blocks inside the block it has lit.
-    if has_key(s:follow, bufnr('%'))
-        \ && index(get(l:state, 'walk', []), get(l:state, 'focus', 0)) < 0
-        let l:outer = s:block_around(line('.'))
-        if empty(l:outer)
-            call s:message('no indented block around the cursor')
-            return
-        endif
-        call s:start_walk(l:outer)
-        let l:state = b:spotlight
-    endif
-    " After <leader>hd: walk the blocks inside the outer one, wrapping round
-    " to the whole outer block. Focus 0 during a walk means the focused block
-    " was deleted: carry on from the start (or the end, going back).
-    let l:walk = get(l:state, 'walk', [])
-    let l:focus = get(l:state, 'focus', 0)
-    if !empty(l:walk) && (l:focus == 0 || index(l:walk, l:focus) >= 0)
-        let l:at = l:focus == 0 && a:step < 0 ? len(l:walk) - 1
-            \ : (index(l:walk, l:focus) + a:step + len(l:walk)) % len(l:walk)
-        let l:state.focus = l:walk[l:at]
-        let l:region = filter(copy(l:state.regions),
-            \ 'v:val.id == l:state.focus')[0]
-        normal! m'
-        call cursor(l:region.pos[0], 1)
-        normal! ^
-        call s:render_buffer(bufnr('%'))
-        call s:follow_sync()
-        return
-    endif
-    let l:regions = sort(filter(copy(get(l:state, 'regions', [])),
-        \ 'v:val.enabled'), function('s:by_position'))
+    let l:regions = sort(copy(get(l:state, 'regions', [])),
+        \ function('s:by_position'))
     if empty(l:regions)
         call s:message('no regions to focus')
         return
@@ -909,14 +878,12 @@ endfunction
 
 " ── Blocks ───────────────────────────────────────────────────────────────────
 "
-" <leader>hd lights the innermost block of code around the cursor, found by
-" indentation: a line followed by more-indented lines starts a block, which
-" runs until the indentation comes back (blank lines don't end it), plus a
-" closing line at the same indentation (}, ), ], </tag>, />, end, ...).
-" Inside a block, runs of lines separated by blank lines (chunks) count as
-" blocks too. Every block and chunk inside the lit one becomes a region as
-" well, and <leader>hn / hb walk through those, coming back to the whole
-" block after the last one.
+" Follow mode (<leader>hm) lights the innermost block of code around the
+" cursor, found by indentation: a line followed by more-indented lines starts
+" a block, which runs until the indentation comes back (blank lines don't end
+" it), plus a closing line at the same indentation (}, ), ], </tag>, />, end,
+" ...). Inside a block, runs of lines separated by blank lines (chunks) count
+" as blocks too.
 
 let s:closer = '^\s*\%([\])}]\|</\|/\=>\|end\>\|fi\>\|done\>\|esac\>\)'
 
@@ -1044,104 +1011,6 @@ function! s:block_around(lnum) abort
     return l:parent
 endfunction
 
-" The innermost indented block that strictly contains {block}, or [].
-function! s:enclosing_block(block) abort
-    let l:head = s:parent_head(a:block[0])
-    while l:head > 0
-        let l:candidate = s:block_at(l:head)
-        if !empty(l:candidate) && l:candidate[1] >= a:block[1]
-            \ && l:candidate != a:block
-            return l:candidate
-        endif
-        let l:head = s:parent_head(l:head)
-    endwhile
-    return []
-endfunction
-
-" What <leader>hn walks inside the lines [first, last], in file order: each
-" chunk (when there is more than one), then each block whose header is at
-" the chunk's indentation, followed by what is inside that block.
-function! s:walk_items(first, last) abort
-    let l:chunks = s:chunks(a:first, a:last)
-    let l:items = []
-    for l:chunk in l:chunks
-        if len(l:chunks) > 1
-            call add(l:items, l:chunk)
-        endif
-        let l:base = indent(l:chunk[0])
-        for l:lnum in range(l:chunk[0], l:chunk[1])
-            if s:blank(l:lnum) || indent(l:lnum) != l:base
-                continue
-            endif
-            let l:block = s:block_at(l:lnum)
-            if !empty(l:block) && l:block[1] <= l:chunk[1]
-                call add(l:items, l:block)
-                call extend(l:items, call('s:walk_items', s:body(l:block)))
-            endif
-        endfor
-    endfor
-    return l:items
-endfunction
-
-" {outer} followed by everything to walk inside it, without repeats.
-function! s:walk_list(outer) abort
-    let l:inner = a:outer == s:block_at(a:outer[0])
-        \ ? s:body(a:outer) : a:outer
-    let l:seen = {}
-    let l:list = []
-    for l:item in [a:outer] + s:walk_items(l:inner[0], l:inner[1])
-        let l:key = l:item[0] . '-' . l:item[1]
-        if !has_key(l:seen, l:key)
-            let l:seen[l:key] = 1
-            call add(l:list, l:item)
-        endif
-    endfor
-    return l:list
-endfunction
-
-function! spotlight#blocks() abort
-    let l:outer = s:block_around(line('.'))
-    if empty(l:outer)
-        call s:message('no indented block around the cursor')
-        return
-    endif
-    call s:start_walk(l:outer)
-    call s:follow_sync()
-endfunction
-
-" Light {outer} and make it and every block inside it the regions walked by
-" <leader>hn / hb.
-function! s:start_walk(outer) abort
-    let l:list = s:walk_list(a:outer)
-    let l:start = 0
-    if len(l:list) == 1
-        " Nothing inside: walk its neighbours in the enclosing block (or the
-        " top level), starting from it.
-        let l:parent = s:enclosing_block(a:outer)
-        let l:list = empty(l:parent) ? s:walk_items(1, line('$'))
-            \ : s:walk_list(l:parent)
-        let l:start = max([0, index(l:list, a:outer)])
-        if empty(l:list)
-            let l:list = [a:outer]
-        endif
-    endif
-    let l:replace = 1
-    " Drawn once at the end: redrawing after each block is far too slow when
-    " a long file has hundreds of them.
-    for [l:first, l:last] in l:list
-        call s:activate('line', [l:first, 1, l:last, 1], [], l:replace, 0)
-        let l:replace = 0
-        " An indented block re-measures where it ends as you edit.
-        if s:block_at(l:first) == [l:first, l:last]
-            let b:spotlight.regions[-1].block_indent = indent(l:first)
-        endif
-    endfor
-    " Regions were added in walking order.
-    let b:spotlight.walk = map(copy(b:spotlight.regions), 'v:val.id')
-    let b:spotlight.focus = b:spotlight.walk[l:start]
-    call s:render_buffer(bufnr('%'))
-endfunction
-
 " ── Follow mode ──────────────────────────────────────────────────────────────
 "
 " <leader>hm: while on, the block around the cursor is lit automatically as
@@ -1175,14 +1044,6 @@ function! spotlight#follow_start() abort
             \ {'repeat': -1})
     endif
     echo 'spotlight: following the cursor'
-endfunction
-
-" The cursor was moved by the plugin itself (walking blocks): follow mode
-" must not treat that as the user moving to another block.
-function! s:follow_sync() abort
-    if has_key(s:follow, bufnr('%'))
-        let b:spotlight_follow_key = line('.') . ':' . b:changedtick
-    endif
 endfunction
 
 function! s:follow_stop(bufnr) abort
@@ -1269,7 +1130,6 @@ function! spotlight#refresh(...) abort
             if l:state.focus == l:region.id
                 let l:state.focus = 0
             endif
-            call filter(get(l:state, 'walk', []), 'v:val != l:region.id')
             continue
         endif
         if empty(l:pos)
@@ -1290,31 +1150,11 @@ function! spotlight#refresh(...) abort
             endif
         endif
         let l:region.pos = l:pos
-        if has_key(l:region, 'block_indent') && bufnr('%') == l:bufnr
-            call s:remeasure_block(l:bufnr, l:region)
-        endif
         call add(l:kept, l:region)
     endfor
     let l:state.regions = l:kept
     let l:state.lines = l:last
     call s:render_buffer(l:bufnr)
-endfunction
-
-" A region made by <leader>hd: while its first line is still the block's
-" header (same indentation), take its end from the indentation again, so a
-" line added after the last one (no closing brace in Python) is included.
-function! s:remeasure_block(bufnr, region) abort
-    let l:first = a:region.pos[0]
-    if indent(l:first) != a:region.block_indent
-        return
-    endif
-    let l:block = s:block_at(l:first)
-    if empty(l:block) || l:block[1] == a:region.pos[2]
-        return
-    endif
-    let a:region.pos = [l:first, 1, l:block[1], len(getline(l:block[1])) + 1]
-    call s:anchor_del(a:bufnr, a:region)
-    let a:region.anchor = s:anchor_set(a:bufnr, a:region)
 endfunction
 
 " BufWinEnter / WinEnter: bring the current window in line with its buffer

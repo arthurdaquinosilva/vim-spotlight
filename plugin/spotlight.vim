@@ -74,7 +74,6 @@ command! -bar SpotlightClear call spotlight#clear()
 command! -bar SpotlightToggleRegion call spotlight#toggle_region()
 command! -bar SpotlightNext call spotlight#focus(1)
 command! -bar SpotlightPrev call spotlight#focus(-1)
-command! -bar SpotlightBlocks call spotlight#blocks()
 command! -bar SpotlightFollow call spotlight#follow_toggle()
 
 " ── <Plug> mappings (always defined; safe to remap) ──────────────────────────
@@ -88,7 +87,6 @@ nnoremap <silent> <Plug>(SpotlightClear) :<C-u>call spotlight#clear()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
 nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
 nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
-nnoremap <silent> <Plug>(SpotlightBlocks) :<C-u>call spotlight#blocks()<CR>
 nnoremap <silent> <Plug>(SpotlightFollow) :<C-u>call spotlight#follow_toggle()<CR>
 " One region at a time, as in 1.x: the operator clears when a spotlight is
 " on, Visual mode replaces it (or, for SpotlightToggle, clears it).
@@ -100,10 +98,9 @@ xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 " Opt out with: let g:spotlight_no_default_mappings = 1
 " Everything hangs off one key (<leader>h): the key plus a motion lights or
 " adds a region, the key plus c / x / n / b clears, switches a region off or
-" on, and focuses the next / previous region; d lights the indented block
-" around the cursor (then n / b walk the blocks inside it); m keeps lighting
-" the block under the cursor as it moves, until m or c again. Those letters are not useful
-" as motions here. Longer mappings that merely start with the same key (e.g.
+" on, and focuses the next / previous region; m keeps lighting the indented
+" block under the cursor as it moves, until m or c again. Those letters are
+" not useful as motions here. Longer mappings that merely start with the same key (e.g.
 " vim-gitgutter's <leader>hp) are fine: <leader>h{motion} resolves as soon as
 " the motion is typed. Only an existing mapping for the exact key is left
 " alone.
@@ -131,7 +128,6 @@ if !get(g:, 'spotlight_no_default_mappings', 0)
         \ ['toggle', 'x', 'SpotlightToggleRegion'],
         \ ['next', 'n', 'SpotlightNext'],
         \ ['prev', 'b', 'SpotlightPrev'],
-        \ ['blocks', 'd', 'SpotlightBlocks'],
         \ ['follow', 'm', 'SpotlightFollow'],
         \ ]
         call s:map_default('n', get(g:, 'spotlight_' . s:name . '_mapping',

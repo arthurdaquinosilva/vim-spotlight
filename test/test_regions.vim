@@ -144,14 +144,27 @@ function! Test_focus_cycles_through_regions() abort
     call assert_equal(['_', 'b', '_', '_', 'e', '_'], Screen())
 endfunction
 
-function! Test_focus_skips_regions_switched_off() abort
+function! Test_focus_visits_regions_switched_off() abort
     call SetLines(['a', 'b', 'c', 'd', 'e'])
+    " Select a region, park it with <leader>hx, select another.
     1Spotlight
+    call Keys('1G\hx')
     3SpotlightAdd
-    5SpotlightAdd
-    call Keys('3G\hx')
-    call Keys('\hn\hn')
-    call assert_equal(['_', '_', '_', '_', 'e'], Screen())
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call Keys('5G\hn')
+    call assert_equal(['a', '_', '_', '_', '_'], Screen())
+    call assert_equal(1, line('.'))
+    call Keys('\hn')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call assert_equal(3, line('.'))
+    " Past the last one: the enabled regions again.
+    call Keys('\hn')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call Keys('\hb')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call Keys('\hb')
+    call assert_equal(['a', '_', '_', '_', '_'], Screen())
+    call assert_true(b:spotlight.regions[0].enabled == 0)
 endfunction
 
 function! Test_toggle_and_add_leave_focus_mode() abort
