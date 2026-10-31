@@ -884,8 +884,23 @@ function! spotlight#delete_region() abort
     call s:render_buffer(bufnr('%'))
 endfunction
 
+" Put the cursor on the first character of {region}: the first non-blank of
+" a line region, the left edge of a block, the exact start of a char region.
+function! s:goto_start(region) abort
+    let [l:sl, l:sc] = a:region.pos[0:1]
+    if a:region.mode ==# 'line'
+        call cursor(l:sl, 1)
+        normal! ^
+    elseif a:region.mode ==# 'block'
+        call cursor(l:sl, 1)
+        execute 'normal! ' . a:region.vcols[0] . '|'
+    else
+        call cursor(l:sl, l:sc)
+    endif
+endfunction
+
 " Light only the next ({step} = 1) or previous ({step} = -1) region, moving
-" the cursor to it. Regions switched off are visited too, so you can park
+" the cursor to its first character. Regions switched off are visited too, so you can park
 " some with <leader>hx and still step to them. Stepping past the last (or
 " first) region lights every enabled one again.
 function! spotlight#focus(step) abort
@@ -908,7 +923,7 @@ function! spotlight#focus(step) abort
     else
         let l:state.focus = l:ids[l:next]
         normal! m'
-        call cursor(l:regions[l:next].pos[0], l:regions[l:next].pos[1])
+        call s:goto_start(l:regions[l:next])
     endif
     call s:render_buffer(bufnr('%'))
 endfunction

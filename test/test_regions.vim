@@ -269,3 +269,21 @@ function! Test_deleted_region_stops_tracking_edits() abort
     call assert_equal(['___', '_', '_', '_', 'd'], Screen())
     call assert_equal(1, len(b:spotlight.regions))
 endfunction
+
+function! Test_focus_puts_cursor_on_first_character() abort
+    call SetLines(['x', '    indented', "\tab", 'one two three', 'abcdefgh'])
+    2Spotlight
+    call Keys('3G\hj')
+    call Keys('4Gw\hiw')
+    call Keys("5G03l\<C-v>l\\h")
+    call Keys('1G\hn')
+    call assert_equal([2, 5], [line('.'), col('.')])
+    call Keys('\hn')
+    call assert_equal([3, 2], [line('.'), col('.')])
+    call Keys('\hn')
+    call assert_equal([4, 5], [line('.'), col('.')])
+    call Keys('\hn')
+    call assert_equal([5, 4], [line('.'), col('.')])
+    call Keys('\hb')
+    call assert_equal([4, 5], [line('.'), col('.')])
+endfunction

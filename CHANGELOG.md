@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Changed
 
+- `<leader>hn` / `<leader>hb` put the cursor on the region's first character: the first non-blank of a line region and the left edge of a column block, instead of column 1.
 - `<leader>hn` / `<leader>hb` now visit regions switched off with `<leader>hx` too, instead of skipping them: select a region, park it with `<leader>hx`, select another, and cycle between them.
 
 ### Removed

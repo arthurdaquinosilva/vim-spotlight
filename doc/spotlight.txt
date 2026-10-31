@@ -88,13 +88,14 @@ removes them all. It removes the region lit on its own by <leader>hn /
 or not), and lights the remaining ones again. Removing the last region clears
 the spotlight.
 
-<leader>hn lights only the next region and moves the cursor to it, pressing
-it again moves on to the one after it, and stepping past the last region
-lights all of them again. <leader>hb goes back the other way. Regions are
-visited in buffer order, including the ones switched off: select a region,
-park it with <leader>hx, select another, and <leader>hn / <leader>hb cycle
-between them. Adding a region or switching one off or on lights all of the
-enabled ones again.
+<leader>hn lights only the next region and puts the cursor on its first
+character (the first non-blank of a line region, the left edge of a block),
+pressing it again moves on to the one after it, and stepping past the last
+region lights all of them again. <leader>hb goes back the other way. Regions
+are visited in buffer order, including the ones switched off: select a
+region, park it with <leader>hx, select another, and <leader>hn / <leader>hb
+cycle between them. Adding a region or switching one off or on lights all of
+the enabled ones again.
 
 <leader>hm turns on follow mode: from then on the innermost block of code
 around the cursor is lit automatically wherever you move, including while

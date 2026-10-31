@@ -102,7 +102,7 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 
 - `<leader>hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**.
 - `<leader>hd` **removes one region** and keeps the rest: the one you focused with `<leader>hn` / `<leader>hb`, or else the one under the cursor. Removing the last one clears the spotlight.
-- `<leader>hn` lights **only the next region** and jumps to it; keep pressing to walk through them, and past the last one everything is lit again. `<leader>hb` goes back. Switched-off regions are visited too, so you can select a region, park it with `<leader>hx`, select another, and cycle between them.
+- `<leader>hn` lights **only the next region** and puts the cursor on its first character; keep pressing to walk through them, and past the last one everything is lit again. `<leader>hb` goes back. Switched-off regions are visited too, so you can select a region, park it with `<leader>hx`, select another, and cycle between them.
 - `<leader>hm` turns on **follow mode**: the block of code under the cursor, found by indentation (works in any language, no language server needed), is lit automatically wherever you move; `<leader>hm` again (or `<leader>hc`) turns it off. Works per buffer, and alongside `g:spotlight_suppress_cursor_events`.
 - `<leader>hc` or `:SpotlightClear` removes every region. To start over with one region, clear first or use `:Spotlight` with a range.
 
