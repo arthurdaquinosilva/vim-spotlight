@@ -19,7 +19,7 @@ set cpoptions&vim
 "
 " Each region:
 "
-"   id       stable id; also the text property id in Vim
+"   id       stable id (the text property id in Vim is derived from it)
 "   mode     'char' | 'line' | 'block'
 "   pos      [sl, sc, el, ec]  1-based lines and byte columns; ec is exclusive
 "                              (one past the last lit byte). Columns are
@@ -44,6 +44,12 @@ let s:end_row_key = has('nvim-0.6') ? 'end_row' : 'end_line'
 let s:has_prop_find = s:has_textprop && exists('*prop_find')
 let s:has_prop_range = s:has_textprop && has('patch-8.2.3652')
 let s:prop_type = 'spotlight_anchor'
+" Before 8.2.0357, prop_remove() has no 'both' and removes every property
+" matching the id OR the type, so one anchor can only be removed by id.
+let s:has_prop_both = s:has_textprop && has('patch-8.2.0357')
+" Text property ids start here, so removing one by id alone does not hit
+" another plugin's properties.
+let s:prop_id_base = 0x53504c00
 let s:ns = s:has_nvim ? nvim_create_namespace('spotlight') : 0
 let s:cursor_events = ['CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI']
 let s:ei_added = []
@@ -126,12 +132,12 @@ function! s:anchor_set(bufnr, region) abort
         endif
         call prop_add(l:sl, l:sc, {
             \ 'type': s:prop_type,
-            \ 'id': a:region.id,
+            \ 'id': s:prop_id_base + a:region.id,
             \ 'bufnr': a:bufnr,
             \ 'end_lnum': l:el,
             \ 'end_col': l:ec,
             \ })
-        return a:region.id
+        return s:prop_id_base + a:region.id
     endif
     return 0
 endfunction
@@ -144,8 +150,11 @@ function! s:anchor_del(bufnr, region) abort
     if s:has_nvim
         call nvim_buf_del_extmark(a:bufnr, s:ns, a:region.anchor)
     elseif s:has_textprop && !empty(prop_type_get(s:prop_type))
-        call prop_remove({'type': s:prop_type, 'id': a:region.anchor,
-            \ 'both': 1, 'bufnr': a:bufnr, 'all': 1}, 1, s:line_count(a:bufnr))
+        let l:props = s:has_prop_both
+            \ ? {'type': s:prop_type, 'id': a:region.anchor, 'both': 1}
+            \ : {'id': a:region.anchor}
+        call prop_remove(extend(l:props, {'bufnr': a:bufnr, 'all': 1}),
+            \ 1, s:line_count(a:bufnr))
     endif
 endfunction
 

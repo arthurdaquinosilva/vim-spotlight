@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 
+- On Vim before 8.2.0357, removing one region (deleting all of its text) no longer drops the position tracking of the others, which could make them vanish on the next edit.
 - No more E964 (Vim) or E5555 (Neovim) after a file reloaded with `:edit!` came back shorter, or after deleting the whole buffer, while a region was lit.
 - `spotlight#lines()` and `spotlight#add_lines()` accept a range past the last line instead of failing.
 - With `g:spotlight_suppress_cursor_events`, popups that close when the cursor moves (coc.nvim's hover on `K`, signature help, diagnostics) now close again instead of staying open until the spotlight is cleared.
