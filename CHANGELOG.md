@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+
+- `<leader>hd` (`:SpotlightDeleteRegion`, `<Plug>(SpotlightDeleteRegion)`, `g:spotlight_delete_mapping`) removes one region and keeps the others, where `<leader>hc` removes them all: the region focused with `<leader>hn` / `<leader>hb`, or else the innermost one under the cursor.
+
 ### Changed
 
 - `<leader>hn` / `<leader>hb` now visit regions switched off with `<leader>hx` too, instead of skipping them: select a region, park it with `<leader>hx`, select another, and cycle between them.

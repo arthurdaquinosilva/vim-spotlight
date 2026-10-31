@@ -1,5 +1,6 @@
 scriptencoding utf-8
 " Several regions: adding (<leader>h while lit), clearing (<leader>hc),
+" removing one (<leader>hd),
 " switching off (<leader>hx) and focusing one at a time (<leader>hn / hb).
 
 function! Test_add_lights_several_regions() abort
@@ -186,7 +187,85 @@ endfunction
 
 function! Test_region_keys_are_mapped() abort
     call assert_equal('<Plug>(SpotlightClear)', maparg('<leader>hc', 'n'))
+    call assert_equal('<Plug>(SpotlightDeleteRegion)', maparg('<leader>hd', 'n'))
     call assert_equal('<Plug>(SpotlightToggleRegion)', maparg('<leader>hx', 'n'))
     call assert_equal('<Plug>(SpotlightNext)', maparg('<leader>hn', 'n'))
     call assert_equal('<Plug>(SpotlightPrev)', maparg('<leader>hb', 'n'))
+endfunction
+
+function! Test_delete_region_under_cursor_keeps_the_others() abort
+    call SetLines(['one', 'two', 'three', 'four', 'five'])
+    2Spotlight
+    4SpotlightAdd
+    call Keys('4G\hd')
+    call assert_equal(['___', 'two', '_____', '____', '____'], Screen())
+    call assert_equal(1, len(b:spotlight.regions))
+    " Gone for good: <leader>hx there finds nothing to switch back on.
+    call Keys('4G\hx')
+    call assert_equal(['___', 'two', '_____', '____', '____'], Screen())
+endfunction
+
+function! Test_delete_picks_innermost_region() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    1,5Spotlight
+    3SpotlightAdd
+    call Keys('3G\hd')
+    call assert_equal(1, len(b:spotlight.regions))
+    call assert_equal([1, 5], [b:spotlight.regions[0].pos[0],
+        \ b:spotlight.regions[0].pos[2]])
+endfunction
+
+function! Test_delete_removes_the_focused_region() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e', 'f'])
+    2Spotlight
+    4SpotlightAdd
+    6SpotlightAdd
+    call Keys('1G\hn\hn')
+    call assert_equal(['_', '_', '_', 'd', '_', '_'], Screen())
+    " The focused region goes even with the cursor moved off it; every
+    " remaining region is lit again.
+    call Keys('6G\hd')
+    call assert_equal(['_', 'b', '_', '_', '_', 'f'], Screen())
+    call assert_equal(0, b:spotlight.focus)
+    call Keys('\hn')
+    call assert_equal(['_', 'b', '_', '_', '_', '_'], Screen())
+endfunction
+
+function! Test_delete_works_on_switched_off_region() abort
+    call SetLines(['one', 'two', 'three'])
+    1Spotlight
+    3SpotlightAdd
+    call Keys('3G\hx3G\hd')
+    call assert_equal(['one', '___', '_____'], Screen())
+    call assert_equal(1, len(b:spotlight.regions))
+endfunction
+
+function! Test_delete_last_region_clears() abort
+    call SetLines(['one', 'two', 'three'])
+    2Spotlight
+    call Keys('2G\hd')
+    call assert_false(exists('b:spotlight'))
+    call assert_equal([], SpotlightMatches())
+endfunction
+
+function! Test_delete_outside_any_region_changes_nothing() abort
+    call SetLines(['one', 'two', 'three'])
+    2Spotlight
+    call Keys('3G\hd')
+    call assert_equal(['___', 'two', '_____'], Screen())
+    call assert_equal(1, len(b:spotlight.regions))
+    SpotlightClear
+    call Keys('\hd')
+    call assert_false(exists('b:spotlight'))
+endfunction
+
+function! Test_deleted_region_stops_tracking_edits() abort
+    call RequireTracking()
+    call SetLines(['a', 'b', 'c', 'd'])
+    2Spotlight
+    4SpotlightAdd
+    call Keys('2G\hd')
+    call Keys("ggOnew\<Esc>")
+    call assert_equal(['___', '_', '_', '_', 'd'], Screen())
+    call assert_equal(1, len(b:spotlight.regions))
 endfunction

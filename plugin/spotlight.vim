@@ -72,6 +72,7 @@ command! -bar -bang -range Spotlight
 command! -bar -range SpotlightAdd call spotlight#add_lines(<line1>, <line2>)
 command! -bar SpotlightClear call spotlight#clear()
 command! -bar SpotlightToggleRegion call spotlight#toggle_region()
+command! -bar SpotlightDeleteRegion call spotlight#delete_region()
 command! -bar SpotlightNext call spotlight#focus(1)
 command! -bar SpotlightPrev call spotlight#focus(-1)
 command! -bar SpotlightFollow call spotlight#follow_toggle()
@@ -85,6 +86,7 @@ nnoremap <silent> <expr> <Plug>(SpotlightAddOperator) spotlight#add_operator_map
 xnoremap <silent> <expr> <Plug>(SpotlightAddVisual) spotlight#visual_map(1)
 nnoremap <silent> <Plug>(SpotlightClear) :<C-u>call spotlight#clear()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
+nnoremap <silent> <Plug>(SpotlightDeleteRegion) :<C-u>call spotlight#delete_region()<CR>
 nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
 nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
 nnoremap <silent> <Plug>(SpotlightFollow) :<C-u>call spotlight#follow_toggle()<CR>
@@ -97,11 +99,12 @@ xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 " ── Default key bindings ─────────────────────────────────────────────────────
 " Opt out with: let g:spotlight_no_default_mappings = 1
 " Everything hangs off one key (<leader>h): the key plus a motion lights or
-" adds a region, the key plus c / x / n / b clears, switches a region off or
-" on, and focuses the next / previous region; m keeps lighting the indented
-" block under the cursor as it moves, until m or c again. Those letters are
-" not useful as motions here. Longer mappings that merely start with the same key (e.g.
-" vim-gitgutter's <leader>hp) are fine: <leader>h{motion} resolves as soon as
+" adds a region, the key plus c / d / x / n / b clears everything, removes
+" one region, switches a region off or on, and focuses the next / previous
+" region; m keeps lighting the indented block under the cursor as it moves,
+" until m or c again. Those letters are not useful as motions here. Longer
+" mappings that merely start with the same key (e.g. vim-gitgutter's
+" <leader>hp) are fine: <leader>h{motion} resolves as soon as
 " the motion is typed. Only an existing mapping for the exact key is left
 " alone.
 
@@ -125,6 +128,7 @@ if !get(g:, 'spotlight_no_default_mappings', 0)
         \ '<Plug>(SpotlightVisual)', '<Plug>(SpotlightToggle)'])
     for [s:name, s:letter, s:plug] in [
         \ ['clear', 'c', 'SpotlightClear'],
+        \ ['delete', 'd', 'SpotlightDeleteRegion'],
         \ ['toggle', 'x', 'SpotlightToggleRegion'],
         \ ['next', 'n', 'SpotlightNext'],
         \ ['prev', 'b', 'SpotlightPrev'],

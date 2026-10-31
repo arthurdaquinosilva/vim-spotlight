@@ -847,6 +847,34 @@ function! spotlight#toggle_region() abort
     call s:render_buffer(bufnr('%'))
 endfunction
 
+" Remove one region for good, keeping the others: the one lit on its own
+" (<leader>hn / <leader>hb) when focusing, otherwise the innermost one under
+" the cursor. Removing the last region clears the spotlight.
+function! spotlight#delete_region() abort
+    let l:state = get(b:, 'spotlight', {})
+    let l:regions = get(l:state, 'regions', [])
+    let l:target = filter(copy(l:regions), 'v:val.id == l:state.focus')
+    if empty(l:target)
+        let l:target = sort(filter(copy(l:regions),
+            \ 's:contains(v:val, line("."), col("."))'),
+            \ {a, b -> s:size(a) - s:size(b)})
+    endif
+    if empty(l:target)
+        call s:message(empty(l:regions) ? 'no regions to remove'
+            \ : 'no region under the cursor')
+        return
+    endif
+    if len(l:regions) == 1
+        call spotlight#clear()
+        return
+    endif
+    let l:region = l:target[0]
+    call s:anchor_del(bufnr('%'), l:region)
+    call filter(l:regions, 'v:val.id != l:region.id')
+    let l:state.focus = 0
+    call s:render_buffer(bufnr('%'))
+endfunction
+
 " Light only the next ({step} = 1) or previous ({step} = -1) region, moving
 " the cursor to it. Regions switched off are visited too, so you can park
 " some with <leader>hx and still step to them. Stepping past the last (or
