@@ -136,13 +136,23 @@ function! Test_focus_cycles_through_regions() abort
     call Keys('\hn')
     call assert_equal(['_', '_', '_', '_', 'e', '_'], Screen())
     call assert_equal(5, line('.'))
-    " Past the last region: all of them again.
+    " Past the last region: around to the first, never all of them at once.
     call Keys('\hn')
-    call assert_equal(['_', 'b', '_', '_', 'e', '_'], Screen())
+    call assert_equal(['_', 'b', '_', '_', '_', '_'], Screen())
+    call assert_equal(2, line('.'))
     call Keys('\hb')
     call assert_equal(['_', '_', '_', '_', 'e', '_'], Screen())
-    call Keys('\hb\hb')
-    call assert_equal(['_', 'b', '_', '_', 'e', '_'], Screen())
+    call Keys('\hb')
+    call assert_equal(['_', 'b', '_', '_', '_', '_'], Screen())
+endfunction
+
+function! Test_focus_back_starts_at_last_region() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    2Spotlight
+    4SpotlightAdd
+    call Keys('1G\hb')
+    call assert_equal(['_', '_', '_', 'd', '_'], Screen())
+    call assert_equal(4, line('.'))
 endfunction
 
 function! Test_focus_visits_regions_switched_off() abort
@@ -158,14 +168,42 @@ function! Test_focus_visits_regions_switched_off() abort
     call Keys('\hn')
     call assert_equal(['_', '_', 'c', '_', '_'], Screen())
     call assert_equal(3, line('.'))
-    " Past the last one: the enabled regions again.
+    " Past the last one: around to the first.
     call Keys('\hn')
-    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
-    call Keys('\hb')
-    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
-    call Keys('\hb')
     call assert_equal(['a', '_', '_', '_', '_'], Screen())
+    call Keys('\hb')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
     call assert_true(b:spotlight.regions[0].enabled == 0)
+endfunction
+
+function! Test_toggle_while_focusing_parks_and_shows_the_rest() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    " Two parked regions: cycle between them, then <leader>hx shows the
+    " whole buffer instead of switching the focused one back on.
+    1Spotlight
+    call Keys('1G\hx')
+    3SpotlightAdd
+    call Keys('3G\hx')
+    call Keys('\hn\hn')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', 'b', 'c', 'd', 'e'], Screen())
+    call assert_equal([0, 0], map(copy(b:spotlight.regions), 'v:val.enabled'))
+    call assert_equal(0, b:spotlight.focus)
+    " Cycling picks up again from the first region.
+    call Keys('\hn')
+    call assert_equal(['a', '_', '_', '_', '_'], Screen())
+endfunction
+
+function! Test_toggle_while_focusing_an_enabled_region_parks_it() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    1Spotlight
+    3SpotlightAdd
+    5SpotlightAdd
+    call Keys('1G\hn\hn')
+    call Keys('\hx')
+    call assert_equal(['a', '_', '_', '_', 'e'], Screen())
+    call assert_equal([1, 0, 1], map(copy(b:spotlight.regions), 'v:val.enabled'))
 endfunction
 
 function! Test_toggle_and_add_leave_focus_mode() abort

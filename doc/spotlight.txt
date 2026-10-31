@@ -89,13 +89,18 @@ or not), and lights the remaining ones again. Removing the last region clears
 the spotlight.
 
 <leader>hn lights only the next region and puts the cursor on its first
-character (the first non-blank of a line region, the left edge of a block),
-pressing it again moves on to the one after it, and stepping past the last
-region lights all of them again. <leader>hb goes back the other way. Regions
-are visited in buffer order, including the ones switched off: select a
-region, park it with <leader>hx, select another, and <leader>hn / <leader>hb
-cycle between them. Adding a region or switching one off or on lights all of
-the enabled ones again.
+character (the first non-blank of a line region, the left edge of a block).
+Pressing it again moves on to the one after it, and past the last region it
+wraps around to the first. <leader>hb goes back the other way. Regions are
+visited in buffer order, including the ones switched off: select a region,
+park it with <leader>hx, select another, park it too, and <leader>hn /
+<leader>hb cycle between them.
+
+While a region is lit on its own, <leader>hx leaves the cycle and leaves that
+region switched off: with every region parked, the whole buffer shows again,
+and <leader>hn / <leader>hb pick the cycle up again. <leader>hc removes
+everything. Adding or removing a region also leaves the cycle and lights all
+of the enabled regions.
 
 <leader>hm turns on follow mode: from then on the innermost block of code
 around the cursor is lit automatically wherever you move, including while
@@ -148,8 +153,8 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
                         around the cursor as it moves.
 
                                              *:SpotlightNext* *:SpotlightPrev*
-:SpotlightNext          Light only the next region; past the last one, light
-:SpotlightPrev          all of them again. :SpotlightPrev goes backwards.
+:SpotlightNext          Light only the next region; past the last one, wrap
+:SpotlightPrev          around to the first. :SpotlightPrev goes backwards.
 
 All commands can be followed by |:bar|.
 
@@ -188,10 +193,12 @@ NORMAL MODE                                              *spotlight-normal*
                         focused with <leader>hn / <leader>hb, or else the
                         one under the cursor.
 
-<leader>hx              Switch the region under the cursor off or on.
+<leader>hx              Switch the region under the cursor off or on. While
+                        cycling with <leader>hn / <leader>hb: stop, leaving
+                        the focused region switched off.
 
 <leader>hn              Light only the next region and jump to it; past the
-                        last one, light all of them again.
+                        last one, wrap around to the first.
 
 <leader>hb              Same as <leader>hn, going back.
 

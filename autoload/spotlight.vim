@@ -841,9 +841,19 @@ function! spotlight#command(bang, line1, line2) abort
 endfunction
 
 " Switch the region under the cursor off (kept, but dimmed) or back on. With
-" nested regions the innermost one is switched. Also leaves focus mode.
+" nested regions the innermost one is switched. While one region is lit on
+" its own (<leader>hn / <leader>hb), leave that instead, with the region
+" switched off: once every region is parked, the whole buffer shows again.
 function! spotlight#toggle_region() abort
     let l:state = get(b:, 'spotlight', {})
+    let l:focused = filter(copy(get(l:state, 'regions', [])),
+        \ 'v:val.id == l:state.focus')
+    if !empty(l:focused)
+        let l:focused[0].enabled = 0
+        let l:state.focus = 0
+        call s:render_buffer(bufnr('%'))
+        return
+    endif
     let l:here = filter(copy(get(l:state, 'regions', [])),
         \ 's:contains(v:val, line("."), col("."))')
     if empty(l:here)
@@ -900,9 +910,9 @@ function! s:goto_start(region) abort
 endfunction
 
 " Light only the next ({step} = 1) or previous ({step} = -1) region, moving
-" the cursor to its first character. Regions switched off are visited too, so you can park
-" some with <leader>hx and still step to them. Stepping past the last (or
-" first) region lights every enabled one again.
+" the cursor to its first character. Regions switched off are visited too,
+" so you can park some with <leader>hx and still step to them. Stepping past
+" the last (or first) region wraps around to the first (or last).
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})
     let l:regions = sort(copy(get(l:state, 'regions', [])),
@@ -912,19 +922,16 @@ function! spotlight#focus(step) abort
         return
     endif
     let l:ids = map(copy(l:regions), 'v:val.id')
-    " Position -1 stands for "all regions", before the first and after the last.
     let l:at = index(l:ids, l:state.focus)
-    let l:next = l:at + a:step
-    if l:at == -1 && a:step < 0
-        let l:next = len(l:ids) - 1
-    endif
-    if l:next < 0 || l:next >= len(l:ids)
-        let l:state.focus = 0
+    if l:at == -1
+        " Not focusing yet: start at the first (or last) region.
+        let l:next = a:step > 0 ? 0 : len(l:ids) - 1
     else
-        let l:state.focus = l:ids[l:next]
-        normal! m'
-        call s:goto_start(l:regions[l:next])
+        let l:next = (l:at + a:step + len(l:ids)) % len(l:ids)
     endif
+    let l:state.focus = l:ids[l:next]
+    normal! m'
+    call s:goto_start(l:regions[l:next])
     call s:render_buffer(bufnr('%'))
 endfunction
 
