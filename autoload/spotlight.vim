@@ -54,6 +54,8 @@ let s:ns = s:has_nvim ? nvim_create_namespace('spotlight') : 0
 let s:cursor_events = ['CursorMoved', 'CursorMovedI', 'CursorHold', 'CursorHoldI']
 let s:ei_added = []
 let s:suppressing = 0
+" Buffers that may have a region list open (<leader>hq), by number.
+let s:listed = {}
 " :match highlights hidden while suppressing, by window ID.
 let s:hidden_match = {}
 let s:sweep_timer = -1
@@ -649,6 +651,7 @@ function! s:activate(mode, pos, vcols, replace, ...) abort
     " A new region is meant to be seen: show everything again.
     let b:spotlight.focus = 0
     call add(b:spotlight.regions, l:region)
+    call s:sync_list(l:bufnr)
 
     execute 'autocmd! spotlight_buffer * <buffer=' . l:bufnr . '>'
     let l:events = 'TextChanged,TextChangedI'
@@ -900,22 +903,32 @@ function! spotlight#delete_region() abort
     call s:anchor_del(bufnr('%'), l:region)
     call filter(l:regions, 'v:val.id != l:region.id')
     let l:state.focus = 0
+    call s:sync_list(bufnr('%'))
     call s:render_buffer(bufnr('%'))
 endfunction
 
-" Put the cursor on the first character of {region}: the first non-blank of
-" a line region, the left edge of a block, the exact start of a char region.
-function! s:goto_start(region) abort
+" Byte column of the first character of {region} in the current buffer: the
+" first non-blank of a line region, the left edge of a block, the exact start
+" of a char region.
+function! s:start_col(region) abort
     let [l:sl, l:sc] = a:region.pos[0:1]
     if a:region.mode ==# 'line'
-        call cursor(l:sl, 1)
-        normal! ^
+        return max([match(getline(l:sl), '\S') + 1, 1])
     elseif a:region.mode ==# 'block'
-        call cursor(l:sl, 1)
-        execute 'normal! ' . a:region.vcols[0] . '|'
-    else
-        call cursor(l:sl, l:sc)
+        let l:len = len(getline(l:sl))
+        for l:col in range(1, l:len)
+            if virtcol([l:sl, l:col]) >= a:region.vcols[0]
+                return l:col
+            endif
+        endfor
+        return max([l:len, 1])
     endif
+    return l:sc
+endfunction
+
+" Put the cursor on the first character of {region}.
+function! s:goto_start(region) abort
+    call cursor(a:region.pos[0], s:start_col(a:region))
 endfunction
 
 " Light only the next ({step} = 1) or previous ({step} = -1) region, moving
@@ -941,6 +954,116 @@ function! spotlight#focus(step) abort
     let l:state.focus = l:ids[l:next]
     normal! m'
     call s:goto_start(l:regions[l:next])
+    call s:render_buffer(bufnr('%'))
+endfunction
+
+" ── Region list ──────────────────────────────────────────────────────────────
+"
+" <leader>hq shows the regions in the window's location list: per window, like
+" the regions are per buffer, and it leaves the quickfix list alone. Vim does
+" not tell plugins about a jump through a list, so <CR> and double-click are
+" mapped in the list window to light the chosen region as well. The list's
+" context marks it as ours and maps its entries to regions. Entries show only
+" the file's name (a 'module', ignored where unsupported), so a long path does
+" not push their text out of view. The list is rebuilt when regions come or
+" go, and when the line count changes.
+
+" What setloclist() needs for the regions of the current buffer {bufnr}.
+function! s:list_props(bufnr) abort
+    let l:state = get(b:, 'spotlight', {})
+    let l:regions = sort(copy(get(l:state, 'regions', [])),
+        \ function('s:by_position'))
+    let l:props = {
+        \ 'title': 'Spotlight regions',
+        \ 'items': map(copy(l:regions), '{
+            \ "bufnr": a:bufnr,
+            \ "module": expand("%:t"),
+            \ "lnum": v:val.pos[0],
+            \ "col": s:start_col(v:val),
+            \ "text": substitute(getline(v:val.pos[0]), "^\\s\\+", "", ""),
+            \ }'),
+        \ 'context': {
+            \ 'spotlight_bufnr': a:bufnr,
+            \ 'spotlight_ids': map(copy(l:regions), 'v:val.id'),
+            \ },
+        \ }
+    let l:at = index(l:props.context.spotlight_ids, get(l:state, 'focus', 0))
+    if l:at >= 0
+        let l:props.idx = l:at + 1
+    endif
+    return l:props
+endfunction
+
+" The context of the location list of window {winid}, when it is a region list.
+function! s:list_context(winid) abort
+    let l:context = get(getloclist(a:winid, {'context': 1}), 'context', 0)
+    return type(l:context) == v:t_dict && has_key(l:context, 'spotlight_bufnr')
+        \ ? l:context : {}
+endfunction
+
+" Bring the region lists of the current buffer {bufnr} up to date.
+function! s:sync_list(bufnr) abort
+    if !has_key(s:listed, a:bufnr) || bufnr('%') != a:bufnr
+        return
+    endif
+    let l:found = 0
+    let l:props = s:list_props(a:bufnr)
+    for l:info in getwininfo()
+        if l:info.quickfix
+            continue
+        endif
+        if get(s:list_context(l:info.winid), 'spotlight_bufnr', 0) == a:bufnr
+            call setloclist(l:info.winid, [], 'r', l:props)
+            let l:found = 1
+        endif
+    endfor
+    if !l:found
+        call remove(s:listed, a:bufnr)
+    endif
+endfunction
+
+" Open the region list for the current buffer.
+function! spotlight#list() abort
+    if !spotlight#is_active()
+        call s:message('no regions to list')
+        return
+    endif
+    let l:bufnr = bufnr('%')
+    call spotlight#refresh(l:bufnr)
+    call setloclist(0, [], ' ', s:list_props(l:bufnr))
+    let s:listed[l:bufnr] = 1
+    lopen
+    call spotlight#list_mappings()
+endfunction
+
+" Mappings for a region list's window; also set when it is reopened by hand.
+function! spotlight#list_mappings() abort
+    nnoremap <buffer> <silent> <CR> :<C-u>call spotlight#list_select()<CR>
+    nnoremap <buffer> <silent> <2-LeftMouse> :<C-u>call spotlight#list_select()<CR>
+endfunction
+
+" <CR> in a list window: go to the entry and light only its region. The same
+" window can be handed a different list later: that one behaves as usual.
+function! spotlight#list_select() abort
+    let l:context = s:list_context(win_getid())
+    if empty(l:context)
+        execute "normal! \<CR>"
+        return
+    endif
+    let l:entry = line('.')
+    if l:entry > len(l:context.spotlight_ids)
+        call s:message('no regions in this list')
+        return
+    endif
+    execute 'silent' l:entry . 'll'
+    let l:id = l:context.spotlight_ids[l:entry - 1]
+    let l:region = filter(copy(get(get(b:, 'spotlight', {}), 'regions', [])),
+        \ 'v:val.id == l:id')
+    if empty(l:region)
+        return
+    endif
+    let b:spotlight.focus = l:id
+    call s:goto_start(l:region[0])
     call s:render_buffer(bufnr('%'))
 endfunction
 
@@ -1162,6 +1285,7 @@ function! s:clear_regions(bufnr) abort
     call s:anchor_clear(a:bufnr)
     silent! unlet b:spotlight
     execute 'autocmd! spotlight_buffer * <buffer=' . a:bufnr . '>'
+    call s:sync_list(a:bufnr)
     call s:render_buffer(a:bufnr)
 endfunction
 
@@ -1189,6 +1313,7 @@ function! spotlight#refresh(...) abort
         \ 's:anchor_get(l:bufnr, v:val, l:delta)')
     let l:reloaded = empty(filter(copy(l:found), '!empty(v:val)'))
 
+    let l:before = len(l:state.regions)
     let l:kept = []
     for l:i in range(len(l:state.regions))
         let l:region = l:state.regions[l:i]
@@ -1222,6 +1347,9 @@ function! spotlight#refresh(...) abort
     endfor
     let l:state.regions = l:kept
     let l:state.lines = l:last
+    if l:delta != 0 || len(l:kept) != l:before
+        call s:sync_list(l:bufnr)
+    endif
     call s:render_buffer(l:bufnr)
 endfunction
 

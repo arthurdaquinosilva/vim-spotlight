@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Added
 
+- `<leader>hq` (`:SpotlightList`, `<Plug>(SpotlightList)`, `g:spotlight_list_mapping`) lists the regions in the location list. `<CR>` or double-click on an entry lights only that region and puts the cursor on its first character.
 - `<leader>hd` (`:SpotlightDeleteRegion`, `<Plug>(SpotlightDeleteRegion)`, `g:spotlight_delete_mapping`) removes one region and keeps the others, where `<leader>hc` removes them all: the region focused with `<leader>hn` / `<leader>hb`, or else the innermost one under the cursor.
 
 ### Changed

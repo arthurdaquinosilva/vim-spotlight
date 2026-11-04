@@ -55,10 +55,19 @@ call s:set_highlight()
 " Kept cheap: the autoload script is only touched when a buffer or window
 " actually has a spotlight, so it is not loaded at startup.
 
+" A region list (<leader>hq) reopened with :lopen needs its mappings again.
+function! s:list_window() abort
+    let l:context = get(getloclist(0, {'context': 1}), 'context', 0)
+    if type(l:context) == v:t_dict && has_key(l:context, 'spotlight_bufnr')
+        call spotlight#list_mappings()
+    endif
+endfunction
+
 augroup spotlight
     autocmd!
     autocmd ColorScheme * call s:set_highlight()
     autocmd OptionSet background call s:set_highlight()
+    autocmd FileType qf call s:list_window()
     autocmd BufWinEnter,WinEnter *
         \ if exists('b:spotlight') || get(w:, 'spotlight', 0)
         \ | call spotlight#sync_window()
@@ -74,6 +83,7 @@ command! -bar SpotlightClear call spotlight#clear()
 command! -bar SpotlightToggleAll call spotlight#toggle_all()
 command! -bar SpotlightToggleRegion call spotlight#toggle_region()
 command! -bar SpotlightDeleteRegion call spotlight#delete_region()
+command! -bar SpotlightList call spotlight#list()
 command! -bar SpotlightNext call spotlight#focus(1)
 command! -bar SpotlightPrev call spotlight#focus(-1)
 command! -bar SpotlightFollow call spotlight#follow_toggle()
@@ -89,6 +99,7 @@ nnoremap <silent> <Plug>(SpotlightClear) :<C-u>call spotlight#clear()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleAll) :<C-u>call spotlight#toggle_all()<CR>
 nnoremap <silent> <Plug>(SpotlightToggleRegion) :<C-u>call spotlight#toggle_region()<CR>
 nnoremap <silent> <Plug>(SpotlightDeleteRegion) :<C-u>call spotlight#delete_region()<CR>
+nnoremap <silent> <Plug>(SpotlightList) :<C-u>call spotlight#list()<CR>
 nnoremap <silent> <Plug>(SpotlightNext) :<C-u>call spotlight#focus(1)<CR>
 nnoremap <silent> <Plug>(SpotlightPrev) :<C-u>call spotlight#focus(-1)<CR>
 nnoremap <silent> <Plug>(SpotlightFollow) :<C-u>call spotlight#follow_toggle()<CR>
@@ -101,9 +112,9 @@ xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 " ── Default key bindings ─────────────────────────────────────────────────────
 " Opt out with: let g:spotlight_no_default_mappings = 1
 " Everything hangs off one key (<leader>h): the key plus a motion lights or
-" adds a region, the key plus c / d / x / n / b clears everything, removes
-" one region, switches every region off or on, and focuses the next /
-" previous region; m keeps lighting the indented block under the cursor as it
+" adds a region, the key plus c / d / x / n / b / q clears everything, removes
+" one region, switches every region off or on, focuses the next / previous
+" region, and lists the regions; m keeps lighting the indented block under the cursor as it
 " moves, until m or c again. Those letters are not useful as motions here.
 " Longer mappings that merely start with the same key (e.g. vim-gitgutter's
 " <leader>hp) are fine: <leader>h{motion} resolves as soon as the motion is
@@ -131,6 +142,7 @@ if !get(g:, 'spotlight_no_default_mappings', 0)
         \ ['clear', 'c', 'SpotlightClear'],
         \ ['delete', 'd', 'SpotlightDeleteRegion'],
         \ ['toggle', 'x', 'SpotlightToggleAll'],
+        \ ['list', 'q', 'SpotlightList'],
         \ ['next', 'n', 'SpotlightNext'],
         \ ['prev', 'b', 'SpotlightPrev'],
         \ ['follow', 'm', 'SpotlightFollow'],

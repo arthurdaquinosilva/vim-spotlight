@@ -95,6 +95,13 @@ Pressing it again moves on to the one after it, and past the last region it
 wraps around to the first. <leader>hb goes back the other way. Regions are
 visited in buffer order, including the ones switched off.
 
+<leader>hq lists the regions in the window's location list, in buffer order,
+with the text of each region's first line. Press <CR> or double-click an entry
+to light only that region and put the cursor on its first character; from
+there <leader>hn, <leader>hb and <leader>hx work as usual. The list keeps up
+as regions are added or removed. Only <CR> and double-click light the region:
+|:lnext| and |:lprevious| just move the cursor.
+
 While a region is lit on its own, <leader>hx leaves the cycle and switches
 every region off, so the whole buffer shows; <leader>hx again lights them all,
 and <leader>hn / <leader>hb pick the cycle up again. <leader>hc removes
@@ -155,6 +162,10 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 :SpotlightFollow        Turn follow mode on or off: keep lighting the block
                         around the cursor as it moves.
 
+                                                              *:SpotlightList*
+:SpotlightList          List the regions in the location list. See
+                        |spotlight-regions|.
+
                                              *:SpotlightNext* *:SpotlightPrev*
 :SpotlightNext          Light only the next region; past the last one, wrap
 :SpotlightPrev          around to the first. :SpotlightPrev goes backwards.
@@ -199,6 +210,9 @@ NORMAL MODE                                              *spotlight-normal*
 <leader>hx              Switch every region off (the whole buffer shows) or
                         back on. While cycling with <leader>hn / <leader>hb:
                         stop, and switch every region off.
+
+<leader>hq              List the regions in the location list; <CR> or
+                        double-click on one lights it and jumps to it.
 
 <leader>hn              Light only the next region and jump to it; past the
                         last one, wrap around to the first.
@@ -249,6 +263,7 @@ These are always defined, whatever the default-mapping settings:
                                   on. Default <leader>hx.
     <Plug>(SpotlightToggleRegion) Normal mode: switch the region under the
                                   cursor off or on.
+    <Plug>(SpotlightList)         Normal mode: list the regions.
     <Plug>(SpotlightNext)         Normal mode: focus the next region.
     <Plug>(SpotlightPrev)         Normal mode: focus the previous region.
     <Plug>(SpotlightFollow)       Normal mode: follow mode on / off.
@@ -285,18 +300,21 @@ g:spotlight_mapping     Default: '<leader>h'
                                                  *g:spotlight_clear_mapping*
                                                 *g:spotlight_delete_mapping*
                                                 *g:spotlight_toggle_mapping*
+                                                  *g:spotlight_list_mapping*
                                                   *g:spotlight_next_mapping*
                                                   *g:spotlight_prev_mapping*
                                                 *g:spotlight_follow_mapping*
 g:spotlight_clear_mapping       Default: |g:spotlight_mapping| followed by c
 g:spotlight_delete_mapping      Default: |g:spotlight_mapping| followed by d
 g:spotlight_toggle_mapping      Default: |g:spotlight_mapping| followed by x
+g:spotlight_list_mapping        Default: |g:spotlight_mapping| followed by q
 g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
 g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
 g:spotlight_follow_mapping      Default: |g:spotlight_mapping| followed by m
                         Keys that clear every region, remove one region,
-                        switch every region off or on, focus the next and
-                        previous region, and turn follow mode on or off. Set one to '' to leave it unmapped.
+                        switch every region off or on, list the regions,
+                        focus the next and previous region, and turn follow
+                        mode on or off. Set one to '' to leave it unmapped.
 
                                              *g:spotlight_no_default_mappings*
 g:spotlight_no_default_mappings
