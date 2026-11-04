@@ -12,9 +12,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 
 - `<leader>hn` / `<leader>hb` cycle only through the regions, wrapping around from the last to the first, instead of stopping on "all regions lit" in between.
-- While cycling, `<leader>hx` stops the cycle and leaves the focused region switched off (with every region parked, the whole buffer shows), instead of switching the focused region back on.
+- `<leader>hx` now switches every region off or back on, wherever the cursor is, instead of only the region under the cursor. While cycling it stops the cycle and switches them all off. The new `:SpotlightToggleAll` and `<Plug>(SpotlightToggleAll)` do the same; `:SpotlightToggleRegion` and `<Plug>(SpotlightToggleRegion)` still switch one region, but no longer have a default key.
 - `<leader>hn` / `<leader>hb` put the cursor on the region's first character: the first non-blank of a line region and the left edge of a column block, instead of column 1.
-- `<leader>hn` / `<leader>hb` now visit regions switched off with `<leader>hx` too, instead of skipping them: select a region, park it with `<leader>hx`, select another, and cycle between them.
+- `<leader>hn` / `<leader>hb` now visit regions that are switched off too, instead of skipping them.
 
 ### Removed
 

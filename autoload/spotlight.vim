@@ -26,7 +26,7 @@ set cpoptions&vim
 "                              ignored in 'line' mode.
 "   vcols    [left, right]     'block' mode only: inclusive screen columns.
 "                              right == 0 means "to the end of every line".
-"   enabled  0 when switched off with <leader>hx (kept, but not lit)
+"   enabled  0 when switched off, e.g. with <leader>hx (kept, but not lit)
 "   anchor   text property id / extmark id that tracks pos across edits
 "
 " Everything outside the union of the lit regions is dimmed. When no region
@@ -840,20 +840,29 @@ function! spotlight#command(bang, line1, line2) abort
     endif
 endfunction
 
-" Switch the region under the cursor off (kept, but dimmed) or back on. With
-" nested regions the innermost one is switched. While one region is lit on
-" its own (<leader>hn / <leader>hb), leave that instead, with the region
-" switched off: once every region is parked, the whole buffer shows again.
-function! spotlight#toggle_region() abort
+" Switch every region off (kept, so the whole buffer shows) or back on. Any
+" region lit, including one lit on its own by <leader>hn / <leader>hb, counts
+" as on.
+function! spotlight#toggle_all() abort
     let l:state = get(b:, 'spotlight', {})
-    let l:focused = filter(copy(get(l:state, 'regions', [])),
-        \ 'v:val.id == l:state.focus')
-    if !empty(l:focused)
-        let l:focused[0].enabled = 0
-        let l:state.focus = 0
-        call s:render_buffer(bufnr('%'))
+    let l:regions = get(l:state, 'regions', [])
+    if empty(l:regions)
+        call s:message('no regions to toggle')
         return
     endif
+    let l:on = l:state.focus == 0
+        \ && empty(filter(copy(l:regions), 'v:val.enabled'))
+    for l:region in l:regions
+        let l:region.enabled = l:on
+    endfor
+    let l:state.focus = 0
+    call s:render_buffer(bufnr('%'))
+endfunction
+
+" Switch only the region under the cursor off or back on. With nested regions
+" the innermost one is switched. Also leaves focus mode.
+function! spotlight#toggle_region() abort
+    let l:state = get(b:, 'spotlight', {})
     let l:here = filter(copy(get(l:state, 'regions', [])),
         \ 's:contains(v:val, line("."), col("."))')
     if empty(l:here)
@@ -911,7 +920,7 @@ endfunction
 
 " Light only the next ({step} = 1) or previous ({step} = -1) region, moving
 " the cursor to its first character. Regions switched off are visited too,
-" so you can park some with <leader>hx and still step to them. Stepping past
+" so you can switch them all off with <leader>hx and still step to them. Stepping past
 " the last (or first) region wraps around to the first (or last).
 function! spotlight#focus(step) abort
     let l:state = get(b:, 'spotlight', {})

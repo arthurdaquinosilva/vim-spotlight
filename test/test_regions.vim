@@ -1,7 +1,7 @@
 scriptencoding utf-8
 " Several regions: adding (<leader>h while lit), clearing (<leader>hc),
-" removing one (<leader>hd),
-" switching off (<leader>hx) and focusing one at a time (<leader>hn / hb).
+" removing one (<leader>hd), switching off (<leader>hx, :SpotlightToggleRegion)
+" and focusing one at a time (<leader>hn / hb).
 
 function! Test_add_lights_several_regions() abort
     call SetLines(['one', 'two', 'three', 'four', 'five'])
@@ -84,16 +84,18 @@ function! Test_toggle_region_under_cursor() abort
     call SetLines(['one', 'two', 'three', 'four', 'five'])
     2Spotlight
     4SpotlightAdd
-    call Keys('4G\hx')
+    4
+    SpotlightToggleRegion
     call assert_equal(['___', 'two', '_____', '____', '____'], Screen())
-    call Keys('4G\hx')
+    SpotlightToggleRegion
     call assert_equal(['___', 'two', '_____', 'four', '____'], Screen())
 endfunction
 
 function! Test_toggle_outside_any_region_changes_nothing() abort
     call SetLines(['one', 'two', 'three'])
     2Spotlight
-    call Keys('3G\hx')
+    3
+    SpotlightToggleRegion
     call assert_equal(['___', 'two', '_____'], Screen())
 endfunction
 
@@ -101,7 +103,8 @@ function! Test_toggle_picks_innermost_region() abort
     call SetLines(['a', 'b', 'c', 'd', 'e'])
     1,5Spotlight
     3SpotlightAdd
-    call Keys('3G\hx')
+    3
+    SpotlightToggleRegion
     let l:enabled = map(copy(b:spotlight.regions), 'v:val.enabled')
     call assert_equal([1, 0], l:enabled)
 endfunction
@@ -195,15 +198,58 @@ function! Test_toggle_while_focusing_parks_and_shows_the_rest() abort
     call assert_equal(['a', '_', '_', '_', '_'], Screen())
 endfunction
 
-function! Test_toggle_while_focusing_an_enabled_region_parks_it() abort
+function! Test_hx_switches_every_region_off_and_on() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    1Spotlight
+    3SpotlightAdd
+    5SpotlightAdd
+    " The cursor does not have to be on a region.
+    call Keys('2G\hx')
+    call assert_equal(['a', 'b', 'c', 'd', 'e'], Screen())
+    call assert_equal([0, 0, 0], map(copy(b:spotlight.regions), 'v:val.enabled'))
+    call Keys('\hx')
+    call assert_equal(['a', '_', 'c', '_', 'e'], Screen())
+    call assert_equal([1, 1, 1], map(copy(b:spotlight.regions), 'v:val.enabled'))
+    call assert_equal(2, line('.'))
+endfunction
+
+function! Test_hx_while_cycling_shows_the_buffer_then_every_region() abort
     call SetLines(['a', 'b', 'c', 'd', 'e'])
     1Spotlight
     3SpotlightAdd
     5SpotlightAdd
     call Keys('1G\hn\hn')
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
     call Keys('\hx')
-    call assert_equal(['a', '_', '_', '_', 'e'], Screen())
-    call assert_equal([1, 0, 1], map(copy(b:spotlight.regions), 'v:val.enabled'))
+    call assert_equal(['a', 'b', 'c', 'd', 'e'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', '_', 'c', '_', 'e'], Screen())
+    call assert_equal(0, b:spotlight.focus)
+endfunction
+
+function! Test_hx_with_some_regions_off_switches_all_off_first() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    1Spotlight
+    3SpotlightAdd
+    3
+    SpotlightToggleRegion
+    call assert_equal(['a', '_', '_', '_', '_'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', 'b', 'c', 'd', 'e'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', '_', 'c', '_', '_'], Screen())
+endfunction
+
+function! Test_region_added_while_all_off_is_lit_alone() abort
+    call SetLines(['a', 'b', 'c', 'd', 'e'])
+    1Spotlight
+    call Keys('\hx')
+    3SpotlightAdd
+    call assert_equal(['_', '_', 'c', '_', '_'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', 'b', 'c', 'd', 'e'], Screen())
+    call Keys('\hx')
+    call assert_equal(['a', '_', 'c', '_', '_'], Screen())
 endfunction
 
 function! Test_toggle_and_add_leave_focus_mode() abort
@@ -226,7 +272,7 @@ endfunction
 function! Test_region_keys_are_mapped() abort
     call assert_equal('<Plug>(SpotlightClear)', maparg('<leader>hc', 'n'))
     call assert_equal('<Plug>(SpotlightDeleteRegion)', maparg('<leader>hd', 'n'))
-    call assert_equal('<Plug>(SpotlightToggleRegion)', maparg('<leader>hx', 'n'))
+    call assert_equal('<Plug>(SpotlightToggleAll)', maparg('<leader>hx', 'n'))
     call assert_equal('<Plug>(SpotlightNext)', maparg('<leader>hn', 'n'))
     call assert_equal('<Plug>(SpotlightPrev)', maparg('<leader>hb', 'n'))
 endfunction
@@ -238,8 +284,9 @@ function! Test_delete_region_under_cursor_keeps_the_others() abort
     call Keys('4G\hd')
     call assert_equal(['___', 'two', '_____', '____', '____'], Screen())
     call assert_equal(1, len(b:spotlight.regions))
-    " Gone for good: <leader>hx there finds nothing to switch back on.
-    call Keys('4G\hx')
+    " Gone for good: there is nothing there to switch back on.
+    4
+    SpotlightToggleRegion
     call assert_equal(['___', 'two', '_____', '____', '____'], Screen())
 endfunction
 
@@ -273,7 +320,9 @@ function! Test_delete_works_on_switched_off_region() abort
     call SetLines(['one', 'two', 'three'])
     1Spotlight
     3SpotlightAdd
-    call Keys('3G\hx3G\hd')
+    3
+    SpotlightToggleRegion
+    call Keys('3G\hd')
     call assert_equal(['one', '___', '_____'], Screen())
     call assert_equal(1, len(b:spotlight.regions))
 endfunction

@@ -77,10 +77,11 @@ Everything outside all of them is dimmed. Regions that overlap or touch form
 one lit area, and each one follows your edits. Deleting all of a region's
 text removes that region.
 
-<leader>hx switches the region under the cursor off: it is dimmed like the
-rest of the buffer but remembered. <leader>hx on it again switches it back
-on. With nested regions, the innermost one is switched. When every region is
-off, nothing is dimmed.
+<leader>hx switches every region off, wherever the cursor is: the whole
+buffer shows, but the regions are remembered. <leader>hx again switches them
+all back on. To switch only the region under the cursor (the innermost one
+when nested), use |:SpotlightToggleRegion|. When every region is off, nothing
+is dimmed.
 
 <leader>hd removes one region for good and keeps the others, where <leader>hc
 removes them all. It removes the region lit on its own by <leader>hn /
@@ -92,12 +93,10 @@ the spotlight.
 character (the first non-blank of a line region, the left edge of a block).
 Pressing it again moves on to the one after it, and past the last region it
 wraps around to the first. <leader>hb goes back the other way. Regions are
-visited in buffer order, including the ones switched off: select a region,
-park it with <leader>hx, select another, park it too, and <leader>hn /
-<leader>hb cycle between them.
+visited in buffer order, including the ones switched off.
 
-While a region is lit on its own, <leader>hx leaves the cycle and leaves that
-region switched off: with every region parked, the whole buffer shows again,
+While a region is lit on its own, <leader>hx leaves the cycle and switches
+every region off, so the whole buffer shows; <leader>hx again lights them all,
 and <leader>hn / <leader>hb pick the cycle up again. <leader>hc removes
 everything. Adding or removing a region also leaves the cycle and lights all
 of the enabled regions.
@@ -145,8 +144,12 @@ single region, use <leader>hc first, or |:Spotlight| with a range.
 :SpotlightDeleteRegion  Remove one region, keeping the others: the focused
                         one, or else the one under the cursor.
 
+                                                         *:SpotlightToggleAll*
+:SpotlightToggleAll     Switch every region off or back on.
+
                                                       *:SpotlightToggleRegion*
-:SpotlightToggleRegion  Switch the region under the cursor off or on.
+:SpotlightToggleRegion  Switch only the region under the cursor off or on.
+                        Has no default key.
 
                                                             *:SpotlightFollow*
 :SpotlightFollow        Turn follow mode on or off: keep lighting the block
@@ -193,9 +196,9 @@ NORMAL MODE                                              *spotlight-normal*
                         focused with <leader>hn / <leader>hb, or else the
                         one under the cursor.
 
-<leader>hx              Switch the region under the cursor off or on. While
-                        cycling with <leader>hn / <leader>hb: stop, leaving
-                        the focused region switched off.
+<leader>hx              Switch every region off (the whole buffer shows) or
+                        back on. While cycling with <leader>hn / <leader>hb:
+                        stop, and switch every region off.
 
 <leader>hn              Light only the next region and jump to it; past the
                         last one, wrap around to the first.
@@ -242,6 +245,8 @@ These are always defined, whatever the default-mapping settings:
     <Plug>(SpotlightClear)        Normal mode: clear every region.
     <Plug>(SpotlightDeleteRegion) Normal mode: remove the focused region,
                                   or else the one under the cursor.
+    <Plug>(SpotlightToggleAll)    Normal mode: switch every region off or
+                                  on. Default <leader>hx.
     <Plug>(SpotlightToggleRegion) Normal mode: switch the region under the
                                   cursor off or on.
     <Plug>(SpotlightNext)         Normal mode: focus the next region.
@@ -290,9 +295,8 @@ g:spotlight_next_mapping        Default: |g:spotlight_mapping| followed by n
 g:spotlight_prev_mapping        Default: |g:spotlight_mapping| followed by b
 g:spotlight_follow_mapping      Default: |g:spotlight_mapping| followed by m
                         Keys that clear every region, remove one region,
-                        switch the region under the cursor off or on, focus
-                        the next and previous region, and turn follow mode
-                        on or off. Set one to '' to leave it unmapped.
+                        switch every region off or on, focus the next and
+                        previous region, and turn follow mode on or off. Set one to '' to leave it unmapped.
 
                                              *g:spotlight_no_default_mappings*
 g:spotlight_no_default_mappings

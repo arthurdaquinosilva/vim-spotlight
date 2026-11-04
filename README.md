@@ -12,7 +12,7 @@ A Vim plugin that puts a literal spotlight on your code. Select a region by moti
 - **Ex-range support**: `:5,20Spotlight`, `:.,+9Spotlight`
 - **Visual mode**: char-wise, line-wise, and block-wise
 - **Block-column spotlight**: `<Ctrl-v>` a column to light just that rectangle, lined up by screen column (tabs and wide characters included)
-- **Several regions at once**: keep pressing `<leader>h` to add more places, switch one off with `<leader>hx` or remove it with `<leader>hd`, and step the focus through them with `<leader>hn` / `<leader>hb`. No Shift needed
+- **Several regions at once**: keep pressing `<leader>h` to add more places, switch them all off and on with `<leader>hx`, remove one with `<leader>hd`, and step the focus through them with `<leader>hn` / `<leader>hb`. No Shift needed
 - **Follows your edits**: the region moves with the text as you insert, delete, and undo
 - **Every window, every tab**: splits on the same buffer stay in sync; each buffer keeps its own spotlight
 - **Leaves your state alone**: no marks, no `:match`, no `'eventignore'` changes
@@ -60,7 +60,7 @@ vim -u NONE -c 'helptags ~/.vim/pack/plugins/start/vim-spotlight/doc' -c q
 | Visual | `<Ctrl-v>{select}` → `<leader>h` | Spotlight the selected column block                     |
 | Normal | `<leader>hc`                     | Clear everything                                        |
 | Normal | `<leader>hd`                     | Remove one region (focused, or under the cursor)        |
-| Normal | `<leader>hx`                     | Switch the region under the cursor off/on               |
+| Normal | `<leader>hx`                     | Switch every region off/on                              |
 | Normal | `<leader>hn` / `<leader>hb`      | Light only the next / previous region                   |
 | Normal | `<leader>hm`                     | Follow mode on/off: keep lighting the block under the cursor as you move |
 
@@ -100,9 +100,9 @@ While something is lit, `<leader>h` *adds* another region (same motions, text ob
 
 Everything outside all of them is dimmed. Overlapping regions merge, and each one follows your edits.
 
-- `<leader>hx` switches the region under the cursor **off** (dimmed but remembered) or back **on**. While cycling with `<leader>hn` / `<leader>hb`, it stops the cycle and leaves the focused region off, so with every region parked you see the whole file again.
+- `<leader>hx` switches **every region off** (the whole file shows, the regions are remembered) or **back on**, wherever the cursor is. While cycling with `<leader>hn` / `<leader>hb`, it stops the cycle and switches them all off.
 - `<leader>hd` **removes one region** and keeps the rest: the one you focused with `<leader>hn` / `<leader>hb`, or else the one under the cursor. Removing the last one clears the spotlight.
-- `<leader>hn` lights **only the next region** and puts the cursor on its first character; keep pressing to walk through them, wrapping around from the last one to the first. `<leader>hb` goes back. Switched-off regions are visited too, so you can select a region, park it with `<leader>hx`, select another, park it too, and cycle between them.
+- `<leader>hn` lights **only the next region** and puts the cursor on its first character; keep pressing to walk through them, wrapping around from the last one to the first. `<leader>hb` goes back. Switched-off regions are visited too, so you can read the whole file with `<leader>hx` and still step back through your regions.
 - `<leader>hm` turns on **follow mode**: the block of code under the cursor, found by indentation (works in any language, no language server needed), is lit automatically wherever you move; `<leader>hm` again (or `<leader>hc`) turns it off. Works per buffer, and alongside `g:spotlight_suppress_cursor_events`.
 - `<leader>hc` or `:SpotlightClear` removes every region. To start over with one region, clear first or use `:Spotlight` with a range.
 
@@ -113,7 +113,8 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 :.,+9Spotlight      " current line + 9 below
 :Spotlight          " current line only
 :10,20SpotlightAdd  " add lines 10–20 as another region
-:SpotlightToggleRegion  " switch the region under the cursor off/on
+:SpotlightToggleAll     " switch every region off/on
+:SpotlightToggleRegion  " switch only the region under the cursor off/on
 :SpotlightDeleteRegion  " remove the focused region, or the one under the cursor
 :SpotlightNext      " light only the next region (:SpotlightPrev for previous)
 :Spotlight!         " clear
@@ -127,7 +128,7 @@ Everything outside all of them is dimmed. Overlapping regions merge, and each on
 | `g:spotlight_mapping`                | `'<leader>h'` | Key for the default mappings                                      |
 | `g:spotlight_clear_mapping`          | key + `c`     | Clear every region                                                |
 | `g:spotlight_delete_mapping`         | key + `d`     | Remove one region                                                 |
-| `g:spotlight_toggle_mapping`         | key + `x`     | Switch the region under the cursor off/on                         |
+| `g:spotlight_toggle_mapping`         | key + `x`     | Switch every region off/on                                        |
 | `g:spotlight_next_mapping`           | key + `n`     | Light only the next region                                        |
 | `g:spotlight_prev_mapping`           | key + `b`     | Light only the previous region                                    |
 | `g:spotlight_no_default_mappings`    | `0`           | Set to `1` to define no mappings                                  |
