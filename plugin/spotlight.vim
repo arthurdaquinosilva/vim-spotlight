@@ -114,11 +114,12 @@ xnoremap <silent> <expr> <Plug>(SpotlightToggle) spotlight#visual_toggle_map()
 " Everything hangs off one key (<leader>h): the key plus a motion lights or
 " adds a region, the key plus c / d / x / n / b / q clears everything, removes
 " one region, switches every region off or on, focuses the next / previous
-" region, and lists the regions; m keeps lighting the indented block under the cursor as it
-" moves, until m or c again. Those letters are not useful as motions here.
-" Longer mappings that merely start with the same key (e.g. vim-gitgutter's
-" <leader>hp) are fine: <leader>h{motion} resolves as soon as the motion is
-" typed. Only an existing mapping for the exact key is left alone.
+" region, and lists the regions; m keeps lighting the indented block under the
+" cursor as it moves, until m or c again. Those letters are not useful as
+" motions here. Longer mappings that merely start with the same key (e.g.
+" vim-gitgutter's <leader>hp) are fine: <leader>h{motion} resolves as soon as
+" the motion is typed. Only an existing mapping for the exact key is left
+" alone.
 
 function! s:map_default(mode, key, plugs) abort
     for l:plug in a:plugs

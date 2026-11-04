@@ -5,21 +5,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-04
+
+### Changed
+
+- **Breaking: `<leader>hx` now switches every region off or back on**, wherever the cursor is, instead of only the region under the cursor. While cycling it stops the cycle and switches them all off. To switch one region, use `:SpotlightToggleRegion` or map `<Plug>(SpotlightToggleRegion)`, which no longer has a default key.
+- **Breaking: `<leader>hd` now removes one region** (see Added). It used to light the indented block around the cursor, which is gone (see Removed).
+- **Breaking: `<leader>hn` / `<leader>hb` cycle only through the regions**, wrapping around from the last to the first, instead of stopping on "all regions lit" in between. Use `<leader>hx` to see the whole buffer.
+- `<leader>hn` / `<leader>hb` now visit regions that are switched off too, instead of skipping them.
+- `<leader>hn` / `<leader>hb` put the cursor on the region's first character: the first non-blank of a line region and the left edge of a column block, instead of column 1.
+
 ### Added
 
 - `<leader>hq` (`:SpotlightList`, `<Plug>(SpotlightList)`, `g:spotlight_list_mapping`) lists the regions in the location list. `<CR>` or double-click on an entry lights only that region and puts the cursor on its first character.
 - `<leader>hd` (`:SpotlightDeleteRegion`, `<Plug>(SpotlightDeleteRegion)`, `g:spotlight_delete_mapping`) removes one region and keeps the others, where `<leader>hc` removes them all: the region focused with `<leader>hn` / `<leader>hb`, or else the innermost one under the cursor.
-
-### Changed
-
-- `<leader>hn` / `<leader>hb` cycle only through the regions, wrapping around from the last to the first, instead of stopping on "all regions lit" in between.
-- `<leader>hx` now switches every region off or back on, wherever the cursor is, instead of only the region under the cursor. While cycling it stops the cycle and switches them all off. The new `:SpotlightToggleAll` and `<Plug>(SpotlightToggleAll)` do the same; `:SpotlightToggleRegion` and `<Plug>(SpotlightToggleRegion)` still switch one region, but no longer have a default key.
-- `<leader>hn` / `<leader>hb` put the cursor on the region's first character: the first non-blank of a line region and the left edge of a column block, instead of column 1.
-- `<leader>hn` / `<leader>hb` now visit regions that are switched off too, instead of skipping them.
+- `:SpotlightToggleAll` and `<Plug>(SpotlightToggleAll)`, the new target of `<leader>hx`.
 
 ### Removed
 
-- `<leader>hd` (`:SpotlightBlocks`, `<Plug>(SpotlightBlocks)`, `g:spotlight_blocks_mapping`) and its walk through the blocks inside the lit one. Follow mode (`<leader>hm`) stays, without the `<leader>hn` / `<leader>hb` block walk.
+- **Breaking: `:SpotlightBlocks`, `<Plug>(SpotlightBlocks)` and `g:spotlight_blocks_mapping`**, and the walk through the blocks inside the lit one. Follow mode (`<leader>hm`) stays, without the `<leader>hn` / `<leader>hb` block walk.
 
 ### Fixed
 
@@ -112,7 +116,8 @@ First tagged release. Changes since the initial version:
 
 - Released as commit `7960f6f` (untagged).
 
-[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.2...HEAD
+[Unreleased]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.2...v3.0.0
 [2.1.2]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/arthurdaquinosilva/vim-spotlight/compare/v2.0.0...v2.1.0
