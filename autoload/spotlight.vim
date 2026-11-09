@@ -617,8 +617,7 @@ augroup spotlight_buffer
 augroup END
 
 " Add a region to the current buffer, or with {replace} make it the only one.
-" With a fifth argument of 0 the windows are not redrawn (the caller does).
-function! s:activate(mode, pos, vcols, replace, ...) abort
+function! s:activate(mode, pos, vcols, replace) abort
     let [l:sl, l:sc, l:el, l:ec] = a:pos
     let l:el = min([l:el, line('$')])
     if l:sl < 1 || l:el < l:sl
@@ -659,9 +658,7 @@ function! s:activate(mode, pos, vcols, replace, ...) abort
     execute 'autocmd spotlight_buffer ' . l:events . ' <buffer=' . l:bufnr
         \ . '> call spotlight#refresh(' . l:bufnr . ')'
 
-    if !a:0 || a:1
-        call s:render_buffer(l:bufnr)
-    endif
+    call s:render_buffer(l:bufnr)
 endfunction
 
 function! s:add_lines(line1, line2, replace) abort
@@ -727,7 +724,7 @@ function! s:from_operator(type, replace) abort
     endif
 endfunction
 
-" True when the cursor position {pos} ([lnum, col]) is inside {region}.
+" True when the position ({lnum}, {col}) is inside {region}.
 function! s:contains(region, lnum, col) abort
     let [l:sl, l:sc, l:el, l:ec] = a:region.pos
     if a:lnum < l:sl || a:lnum > l:el
@@ -744,7 +741,8 @@ function! s:contains(region, lnum, col) abort
     return (a:lnum > l:sl || a:col >= l:sc) && (a:lnum < l:el || a:col < l:ec)
 endfunction
 
-" Number of lines a region spans, to pick the innermost of nested regions.
+" Sort key for a region's extent (lines first, then columns), to pick the
+" innermost of nested regions.
 function! s:size(region) abort
     return (a:region.pos[2] - a:region.pos[0]) * 100000
         \ + (a:region.pos[3] - a:region.pos[1])

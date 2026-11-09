@@ -38,6 +38,14 @@ function! Test_overlapping_regions_merge() abort
     call assert_equal(['_', '2', '3', '4', '5', '_'], Screen())
 endfunction
 
+function! Test_regions_on_lines_with_different_digit_counts() abort
+    " Band edges must sort as numbers: as strings, 10 would come before 2.
+    call SetLines(map(range(1, 11), 'string(v:val)'))
+    2Spotlight
+    10SpotlightAdd
+    call assert_equal(['_', '2', '_', '_', '_', '_', '_', '_', '_', '10', '__'], Screen())
+endfunction
+
 function! Test_every_region_follows_edits() abort
     call RequireDeletionTracking()
     call SetLines(['a', 'b', 'c', 'd', 'e'])
